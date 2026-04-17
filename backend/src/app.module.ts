@@ -32,11 +32,21 @@ import { MailModule } from './mail/mail.module';
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        redis: { host: config.get('REDIS_HOST'), port: +config.get('REDIS_PORT') },
+        redis: {
+          host: config.get('REDIS_HOST'),
+          port: +config.get('REDIS_PORT'),
+        },
       }),
     }),
-    AuthModule, UsersModule, ReposModule, CommitsModule,
-    ReleasesModule, AnalyticsModule, JobsModule, AiModule, MailModule,
+    AuthModule,
+    UsersModule,
+    ReposModule,
+    CommitsModule,
+    ReleasesModule,
+    AnalyticsModule,
+    JobsModule,
+    AiModule,
+    MailModule,
   ],
   controllers: [AppController],
 })
