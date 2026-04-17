@@ -1,0 +1,5 @@
+To start docker: docker compose up -d
+
+To stop docker: docker compose down
+
+for status: docker ps
