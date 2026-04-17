@@ -2,11 +2,10 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
-  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { RepoEntity } from './entities/repo.entity';
 import { GithubService } from './github.service';
 import { CreateRepoDto } from './dto/create-repo.dto';
@@ -112,12 +111,14 @@ export class ReposService {
   ): Promise<{ message: string }> {
     const repo = await this.findOne(id, userId);
 
-    if (repo.status === 'syncing') {
+    // Atomic check-and-update to prevent race conditions
+    const result = await this.reposRepo.update(
+      { id, status: In(['ready', 'error']) },
+      { status: 'pending' },
+    );
+    if (result.affected === 0) {
       throw new ConflictException('Sync already in progress');
     }
-
-    // Update status to pending
-    await this.reposRepo.update(id, { status: 'pending' });
 
     // Queue sync job
     await this.jobsService.addSyncJob(id, userId, accessToken);
@@ -154,6 +155,9 @@ export class ReposService {
     const updateData: Partial<RepoEntity> = { status };
     if (errorMessage) {
       updateData.errorMessage = errorMessage;
+    }
+    if (status === 'syncing') {
+      updateData.totalCommitsSynced = 0;
     }
     if (status === 'ready') {
       updateData.lastSyncedAt = new Date();

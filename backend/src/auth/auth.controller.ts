@@ -5,11 +5,16 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { UsersService } from '../users/users.service';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService, private config: ConfigService) {}
+  constructor(
+    private authService: AuthService,
+    private config: ConfigService,
+    private usersService: UsersService,
+  ) {}
 
   @Get('github')
   @UseGuards(AuthGuard('github'))
@@ -25,8 +30,11 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  me(@CurrentUser() user: any) {
-    return user;
+  async me(@CurrentUser() user: { id: string }) {
+    const fullUser = await this.usersService.findById(user.id);
+    if (!fullUser) return null;
+    const { accessToken, ...safe } = fullUser;
+    return safe;
   }
 
   @Post('logout')

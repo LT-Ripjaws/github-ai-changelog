@@ -73,6 +73,16 @@ export class GithubService {
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
       this.logger.error(`GitHub API error: ${response.status} ${response.statusText}`, error);
+
+      if (response.status === 401) {
+        throw new Error('GitHub token expired or revoked — please re-authenticate');
+      }
+      if (response.status === 403 && response.headers.get('x-ratelimit-remaining') === '0') {
+        throw new Error('GitHub API rate limit exceeded — try again later');
+      }
+      if (response.status === 404) {
+        throw new Error('Repository not found or access denied');
+      }
       throw new Error(`GitHub API error: ${response.status}`);
     }
 

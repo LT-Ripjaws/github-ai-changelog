@@ -1,5 +1,5 @@
 import { Processor, Process, OnQueueActive, OnQueueCompleted, OnQueueFailed } from '@nestjs/bull';
-import { Logger } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
 import type { Job } from 'bull';
 import { ReposService } from '../repos/repos.service';
 import { GithubService } from '../repos/github.service';
@@ -15,8 +15,8 @@ export class JobsProcessor {
   private readonly logger = new Logger(JobsProcessor.name);
 
   constructor(
-    private reposService: ReposService,
     private githubService: GithubService,
+    private reposService: ReposService,
   ) {}
 
   @OnQueueActive()
