@@ -59,6 +59,9 @@ export class RepoEntity {
   @CreateDateColumn({ name: 'created_at' }) 
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' }) 
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+
+  @OneToMany('CommitEntity', 'repo') commits: any[];
+  @OneToMany('ReleaseEntity', 'repo') releases: any[];
 }

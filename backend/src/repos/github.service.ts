@@ -15,9 +15,15 @@ export interface GitHubRepoResponse {
 
 export interface GitHubCommitResponse {
   sha: string;
+  parents?: Array<{ sha: string }>;
   commit: {
     message: string;
     author: {
+      name: string;
+      email: string;
+      date: string;
+    };
+    committer?: {
       name: string;
       email: string;
       date: string;
