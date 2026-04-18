@@ -36,17 +36,6 @@ export class ReposController {
     private readonly usersService: UsersService,
   ) {}
 
-  
-   // Get the user's access token for GitHub API calls
-   
-  private async getAccessToken(userId: string): Promise<string> {
-    const user = await this.usersService.findById(userId);
-    if (!user?.accessToken) {
-      throw new Error('User access token not found');
-    }
-    return user.accessToken;
-  }
-
   @Post()
   @ApiOperation({ summary: 'Connect a GitHub repository' })
   @ApiBody({ type: CreateRepoDto })
@@ -58,7 +47,7 @@ export class ReposController {
     @Body() dto: CreateRepoDto,
     @CurrentUser() user: { id: string },
   ) {
-    const accessToken = await this.getAccessToken(user.id);
+    const accessToken = await this.usersService.getAccessToken(user.id);
     return this.reposService.create(dto, user.id, accessToken);
   }
 
@@ -106,7 +95,7 @@ export class ReposController {
     @Param('id') id: string,
     @CurrentUser() user: { id: string },
   ) {
-    const accessToken = await this.getAccessToken(user.id);
+    const accessToken = await this.usersService.getAccessToken(user.id);
     return this.reposService.queueSync(id, user.id, accessToken);
   }
 

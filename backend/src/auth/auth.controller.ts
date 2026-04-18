@@ -24,7 +24,8 @@ export class AuthController {
   @UseGuards(AuthGuard('github'))
   async githubCallback(@Req() req: any, @Res() res: any) {
     const token = await this.authService.login(req.user);
-    res.redirect(`${this.config.get('FRONTEND_URL')}/auth/callback?token=${token}`);
+    // Use hash fragment — never sent to server in future requests, excluded from Referer
+    res.redirect(`${this.config.get('FRONTEND_URL')}/auth/callback#token=${token}`);
   }
 
   @Get('me')

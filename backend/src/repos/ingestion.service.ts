@@ -31,7 +31,7 @@ export class IngestionService {
     const user = await this.usersService.findById(repo.userId);
     if (!user) throw new Error(`User not found for repo ${repoId}`);
 
-    const token = user.accessToken;
+    const token = await this.usersService.getAccessToken(repo.userId);
     const fullName = repo.fullName;
     const [owner, repoName] = fullName.split('/');
 
