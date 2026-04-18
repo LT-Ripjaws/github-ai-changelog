@@ -19,8 +19,8 @@ export class AiService {
 
   constructor(private config: ConfigService) {
     this.genAI = new GoogleGenerativeAI(config.get<string>('GEMINI_API_KEY') ?? '');
-    this.flashModel = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    this.embeddingModel = this.genAI.getGenerativeModel({ model: 'text-embedding-004' });
+    this.flashModel = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    this.embeddingModel = this.genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
   }
 
   private async sleep(ms: number) {
