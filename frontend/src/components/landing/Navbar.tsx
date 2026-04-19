@@ -1,6 +1,11 @@
+"use client";
+import Link from "next/link";
+import { useTokenCheck } from "@/lib/hooks/useTokenCheck";
 import { Button } from "@/components/ui/button";
 
 export function Navbar() {
+  const { hasToken, loading } = useTokenCheck();
+
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4">
@@ -11,9 +16,17 @@ export function Navbar() {
             </svg>
             <span className="text-lg font-bold">Changelog AI</span>
           </div>
-          <a href={`${process.env.NEXT_PUBLIC_API_URL}/auth/github`}>
-            <Button variant="outline">Sign in</Button>
-          </a>
+          {loading ? (
+            <div className="h-9 w-24 bg-muted rounded animate-pulse" />
+          ) : hasToken ? (
+            <Link href="/dashboard">
+              <Button variant="outline">Dashboard</Button>
+            </Link>
+          ) : (
+            <a href={`${process.env.NEXT_PUBLIC_API_URL}/auth/github`}>
+              <Button variant="outline">Sign in</Button>
+            </a>
+          )}
         </div>
       </div>
     </nav>

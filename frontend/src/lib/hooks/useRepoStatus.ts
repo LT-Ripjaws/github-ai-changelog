@@ -1,12 +1,13 @@
 "use client";
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getRepoStatus } from '@/lib/api';
 import type { RepoStatus } from '@/lib/types';
 
-export function useRepoStatus(repoId: string | null, initialStatus?: RepoStatus) {
-  const [status, setStatus] = useState<RepoStatus | null>(initialStatus || null);
+export function useRepoStatus(repoId: string | null) {
+  const [status, setStatus] = useState<RepoStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pollingRef = useRef(false);
 
   const fetchStatus = useCallback(async () => {
     if (!repoId) return;
@@ -24,20 +25,39 @@ export function useRepoStatus(repoId: string | null, initialStatus?: RepoStatus)
     }
   }, [repoId]);
 
-  // Initial fetch
+  // Fetch immediately when repoId is set (enable polling)
   useEffect(() => {
-    if (repoId && !initialStatus) {
-      fetchStatus();
+    if (!repoId) {
+      setStatus(null);
+      pollingRef.current = false;
+      return;
     }
-  }, [repoId, initialStatus, fetchStatus]);
+    pollingRef.current = true;
+    fetchStatus();
+  }, [repoId, fetchStatus]);
 
-  // Poll every 3 seconds when syncing
+  // Poll every 3 seconds while repo is syncing/pending
   useEffect(() => {
-    if (!repoId || status?.status !== 'syncing') return;
+    if (!repoId || !pollingRef.current) return;
 
-    const interval = setInterval(fetchStatus, 3000);
+    const interval = setInterval(async () => {
+      if (!pollingRef.current) return;
+      
+      try {
+        const data = await getRepoStatus(repoId);
+        setStatus(data);
+
+        // Stop polling once sync is done
+        if (data.status === 'ready' || data.status === 'error') {
+          pollingRef.current = false;
+        }
+      } catch {
+        // Keep trying on error
+      }
+    }, 3000);
+
     return () => clearInterval(interval);
-  }, [repoId, status?.status, fetchStatus]);
+  }, [repoId]);
 
-  return { status, loading, error, refetch: fetchStatus };
+  return { status, loading, error, refetch: fetchStatus, stop: () => { pollingRef.current = false; setStatus(null); } };
 }

@@ -28,7 +28,7 @@ export function AppNavbar() {
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-sm">CA</span>
             </div>
-            <span className="font-semibold text-lg">Changelog AI</span>
+            <span className="font-semibold text-lg">AI-Powered Changelogs</span>
           </a>
         </div>
         

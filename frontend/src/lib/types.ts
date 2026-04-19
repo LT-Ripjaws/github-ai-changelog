@@ -22,6 +22,7 @@ export interface Repo {
   errorMessage: string | null;
   lastSyncedAt: string | null;
   totalCommitsSynced: number;
+  totalCommitsToSync: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -29,8 +30,44 @@ export interface Repo {
 export interface RepoStatus {
   status: 'pending' | 'syncing' | 'ready' | 'error';
   totalCommitsSynced: number;
+  totalCommitsToSync: number;
   errorMessage: string | null;
   lastSyncedAt: string | null;
+}
+
+export interface Commit {
+  id: string;
+  repoId: string;
+  sha: string;
+  message: string;
+  authorName: string | null;
+  authorEmail: string | null;
+  authorGithubLogin: string | null;
+  diffSummary: string | null;
+  aiChangelog: string | null;
+  category: string | null;
+  filesChanged: number;
+  additions: number;
+  deletions: number;
+  isMergeCommit: boolean;
+  committedAt: string;
+  createdAt: string;
+}
+
+export interface Release {
+  id: string;
+  repoId: string;
+  tagName: string;
+  releaseName: string | null;
+  rawBody: string | null;
+  aiSummary: string | null;
+  breakingChanges: string[];
+  features: string[];
+  fixes: string[];
+  chores: string[];
+  commitsCount: number;
+  releasedAt: string;
+  createdAt: string;
 }
 
 export interface PaginatedResponse<T> {

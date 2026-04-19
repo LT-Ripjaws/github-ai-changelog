@@ -9,16 +9,27 @@ export function useAuth() {
 
   useEffect(() => {
     const token = localStorage.getItem('jwt_token');
+    console.log('[useAuth] token exists:', !!token);
     if (!token) { setLoading(false); return; }
     getMe()
-      .then(setUser)
-      .catch(() => { localStorage.removeItem('jwt_token'); setUser(null); })
+      .then((u) => {
+        console.log('[useAuth] getMe success:', u.username);
+        setUser(u);
+      })
+      .catch((err) => {
+        console.log('[useAuth] getMe failed:', err?.response?.status);
+        localStorage.removeItem('jwt_token');
+        setUser(null);
+      })
       .finally(() => setLoading(false));
   }, []);
 
   const logout = () => {
+    console.log('[useAuth] logout called, clearing token');
     localStorage.removeItem('jwt_token');
-    window.location.href = '/';
+    setUser(null);
+    // Use replace to prevent back button from returning to authenticated state
+    window.location.replace('/');
   };
 
   return { user, loading, logout };

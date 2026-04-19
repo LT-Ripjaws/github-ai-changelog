@@ -9,7 +9,7 @@ export default function Home() {
       <Hero />
       <Features />
       <footer className="py-8 text-center text-sm text-muted-foreground border-t">
-        <p>&copy; {new Date().getFullYear()} Changelog AI. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()} RepoNarrate. All rights reserved.</p>
       </footer>
     </main>
   );

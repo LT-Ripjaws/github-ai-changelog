@@ -11,6 +11,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showConnectModal, setShowConnectModal] = useState(false);
+  // Track which repos are actively syncing and their live progress
+  const [syncingRepos, setSyncingRepos] = useState<Record<string, { synced: number; total: number }>>({});
 
   const fetchRepos = async () => {
     try {
@@ -35,16 +37,44 @@ export default function DashboardPage() {
   };
 
   const pollRepoUntilReady = async (repoId: string) => {
-    const maxAttempts = 30; // 30 * 2s = 60s max
+    const maxAttempts = 60; // 60 * 2s = 2min max
     for (let i = 0; i < maxAttempts; i++) {
       await new Promise((r) => setTimeout(r, 2000));
       try {
         const updated = await getRepoStatus(repoId);
+
+        // Update repo in list
         setRepos((prev) =>
           prev.map((r) => (r.id === repoId ? { ...r, ...updated } : r))
         );
-        if (updated.status === 'ready' || updated.status === 'error') break;
+
+        // Track live progress for the progress bar
+        setSyncingRepos((prev) => ({
+          ...prev,
+          [repoId]: { synced: updated.totalCommitsSynced, total: updated.totalCommitsToSync },
+        }));
+
+        if (updated.status === 'ready' || updated.status === 'error') {
+          // Final fetch to catch late increments
+          await new Promise((r) => setTimeout(r, 1000));
+          const final = await getRepoStatus(repoId);
+          setRepos((prev) =>
+            prev.map((r) => (r.id === repoId ? { ...r, ...final } : r))
+          );
+          // Remove from syncing map
+          setSyncingRepos((prev) => {
+            const next = { ...prev };
+            delete next[repoId];
+            return next;
+          });
+          break;
+        }
       } catch {
+        setSyncingRepos((prev) => {
+          const next = { ...prev };
+          delete next[repoId];
+          return next;
+        });
         break;
       }
     }
@@ -139,6 +169,7 @@ export default function DashboardPage() {
             <RepoCard
               key={repo.id}
               repo={repo}
+              syncProgress={syncingRepos[repo.id] ?? null}
               onSync={handleSync}
               onDelete={handleDelete}
             />
