@@ -27,6 +27,7 @@ import { MailModule } from './mail/mail.module';
         database: config.get('DB_NAME'),
         autoLoadEntities: true,
         synchronize: config.get('NODE_ENV') !== 'production',
+        dropSchema: false,
       }),
     }),
     BullModule.forRootAsync({

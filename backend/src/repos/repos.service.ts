@@ -97,6 +97,10 @@ export class ReposService {
    
   async remove(id: string, userId: string): Promise<void> {
     const repo = await this.findOne(id, userId);
+
+    // Cancel any active/queued sync jobs before deleting
+    await this.jobsService.cancelJobsForRepo(id);
+
     await this.reposRepo.remove(repo);
     this.logger.log(`Repo deleted: ${repo.fullName} for user ${userId}`);
   }
@@ -112,8 +116,9 @@ export class ReposService {
     const repo = await this.findOne(id, userId);
 
     // Atomic check-and-update to prevent race conditions
+    // Allow sync from ready, error, or pending (in case initial job got stuck)
     const result = await this.reposRepo.update(
-      { id, status: In(['ready', 'error']) },
+      { id, status: In(['ready', 'error', 'pending']) },
       { status: 'pending' },
     );
     if (result.affected === 0) {
@@ -132,6 +137,7 @@ export class ReposService {
   async getStatus(id: string, userId: string): Promise<{
     status: string;
     totalCommitsSynced: number;
+    totalCommitsToSync: number;
     errorMessage: string | null;
     lastSyncedAt: Date | null;
   }> {
@@ -139,6 +145,7 @@ export class ReposService {
     return {
       status: repo.status,
       totalCommitsSynced: repo.totalCommitsSynced,
+      totalCommitsToSync: repo.totalCommitsToSync,
       errorMessage: repo.errorMessage,
       lastSyncedAt: repo.lastSyncedAt,
     };
@@ -157,7 +164,18 @@ export class ReposService {
       updateData.errorMessage = errorMessage;
     }
     if (status === 'syncing') {
-      updateData.totalCommitsSynced = 0;
+      // Don't reset totalCommitsSynced if repo already has commits (re-sync case)
+      // The count will be corrected at the end of sync
+      const repo = await this.reposRepo.findOne({ where: { id } });
+      if (!repo || repo.totalCommitsSynced === 0) {
+        updateData.totalCommitsSynced = 0;
+      }
+      // Preserve old totalCommitsToSync during re-sync so the frontend
+      // progress bar shows meaningful data while IngestionService fetches
+      // the new count. Only reset to 0 if there's no previous value.
+      if (!repo || repo.totalCommitsToSync === 0) {
+        updateData.totalCommitsToSync = 0;
+      }
     }
     if (status === 'ready') {
       updateData.lastSyncedAt = new Date();

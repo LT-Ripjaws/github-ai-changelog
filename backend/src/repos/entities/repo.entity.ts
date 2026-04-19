@@ -1,11 +1,12 @@
 import {
   Entity, PrimaryGeneratedColumn, Column,
   CreateDateColumn, UpdateDateColumn,
-  ManyToOne, OneToMany, JoinColumn
+  ManyToOne, OneToMany, JoinColumn, Index
 } from 'typeorm';
 import { UserEntity } from '../../users/entities/user.entity';
 
 @Entity('repos')
+@Index('idx_repos_user_created_at', ['userId', 'createdAt'])
 export class RepoEntity {
   @PrimaryGeneratedColumn('uuid') 
   id: string;
@@ -53,8 +54,11 @@ export class RepoEntity {
   @Column({ name: 'last_synced_at', nullable: true }) 
   lastSyncedAt: Date;
 
-  @Column({ name: 'total_commits_synced', default: 0 }) 
+  @Column({ name: 'total_commits_synced', default: 0 })
   totalCommitsSynced: number;
+
+  @Column({ name: 'total_commits_to_sync', default: 0 })
+  totalCommitsToSync: number;
 
   @CreateDateColumn({ name: 'created_at' }) 
   createdAt: Date;

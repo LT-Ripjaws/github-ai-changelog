@@ -2,6 +2,7 @@ import { Processor, Process, OnQueueActive, OnQueueCompleted, OnQueueFailed } fr
 import { Inject, Logger } from '@nestjs/common';
 import type { Job } from 'bull';
 import { IngestionService } from '../repos/ingestion.service';
+import { ReposService } from '../repos/repos.service';
 
 interface SyncJobData {
   repoId: string;
@@ -15,6 +16,7 @@ export class JobsProcessor {
 
   constructor(
     private ingestionService: IngestionService,
+    private reposService: ReposService,
   ) {}
 
   @OnQueueActive()
@@ -28,14 +30,27 @@ export class JobsProcessor {
   }
 
   @OnQueueFailed()
-  onFailed(job: Job, error: Error) {
+  async onFailed(job: Job, error: Error) {
     this.logger.error(`Job ${job.id} failed: ${error.message}`, error.stack);
+    // Update repo status to 'error' so it doesn't stay stuck on 'pending'
+    try {
+      await this.reposService.updateStatus(job.data.repoId, 'error', error.message);
+    } catch (e: any) {
+      this.logger.error(`Failed to update repo status: ${e.message}`);
+    }
   }
 
   @Process('sync')
   async handleSync(job: Job<SyncJobData>) {
     const { repoId } = job.data;
     this.logger.log(`Starting sync for repo ${repoId}`);
+
+    // Update status to 'syncing' before starting
+    try {
+      await this.reposService.updateStatus(repoId, 'syncing');
+    } catch (e: any) {
+      this.logger.warn(`Could not update status to syncing: ${e.message}`);
+    }
 
     try {
       await this.ingestionService.syncRepo(repoId);

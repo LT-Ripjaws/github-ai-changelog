@@ -40,10 +40,20 @@ export class IngestionService {
     const rawCommits = await this.githubService.getCommits(owner, repoName, token, 100);
     this.logger.log(`Got ${rawCommits.length} commits, processing...`);
 
+    // Track total commits for progress display
+    await this.reposRepo.update(repo.id, { totalCommitsToSync: rawCommits.length });
+
     const processedShas = new Map<string, string>(); // sha → commit UUID
 
     for (const rawCommit of rawCommits) {
       const sha = rawCommit.sha;
+
+      // Safety check: stop if repo was deleted mid-sync
+      const repoStillExists = await this.reposRepo.findOne({ where: { id: repo.id } });
+      if (!repoStillExists) {
+        this.logger.warn(`Repo ${fullName} was deleted during sync, stopping.`);
+        return;
+      }
 
       // Skip if already in DB
       const existing = await this.commitsRepo.findOne({ where: { sha } });
@@ -65,36 +75,50 @@ export class IngestionService {
           .join('\n\n')
           .slice(0, 3500);
 
-        await this.sleep(300); // rate limit buffer
+        await this.sleep(1500); // rate limit buffer between commit detail fetches
       } catch (err: any) {
         this.logger.warn(`Could not fetch diff for ${sha}: ${err.message}`);
       }
 
-      // AI processing (all wrapped in try/catch inside aiService)
+      // AI processing (all wrapped in try/catch inside aiService already so)
       const diffSummary = diffText ? await this.aiService.generateDiffSummary(diffText) : '';
       const category = await this.aiService.categorizeCommit(rawCommit.commit.message, diffSummary);
       const aiChangelog = await this.aiService.generateChangelog(rawCommit.commit.message, filesChanged, diffSummary);
       const embedding = await this.aiService.generateEmbedding(rawCommit.commit.message + ' ' + diffSummary);
 
-      await this.sleep(200); // Gemini rate limit buffer
+      // Safety check right before DB write cuz repo might have been deleted during AI calls
+      const stillExists = await this.reposRepo.findOne({ where: { id: repo.id } });
+      if (!stillExists) {
+        this.logger.warn(`Repo ${fullName} was deleted during sync, stopping.`);
+        return;
+      }
 
-      // Insert commit
-      const commit = await this.commitsRepo.save({
-        repoId: repo.id,
-        sha,
-        message: rawCommit.commit.message,
-        authorName: rawCommit.commit.author?.name,
-        authorEmail: rawCommit.commit.author?.email,
-        authorGithubLogin: rawCommit.author?.login,
-        diffSummary,
-        aiChangelog,
-        category,
-        filesChanged,
-        additions,
-        deletions,
-        isMergeCommit: (rawCommit.parents?.length ?? 0) > 1,
-        committedAt: new Date(rawCommit.commit.committer?.date ?? rawCommit.commit.author?.date),
-      });
+      // Insert commit (wrapped in try-catch for FK constraint if repo was deleted mid-flight)
+      let commit;
+      try {
+        commit = await this.commitsRepo.save({
+          repoId: repo.id,
+          sha,
+          message: rawCommit.commit.message,
+          authorName: rawCommit.commit.author?.name,
+          authorEmail: rawCommit.commit.author?.email,
+          authorGithubLogin: rawCommit.author?.login,
+          diffSummary,
+          aiChangelog,
+          category,
+          filesChanged,
+          additions,
+          deletions,
+          isMergeCommit: (rawCommit.parents?.length ?? 0) > 1,
+          committedAt: new Date(rawCommit.commit.committer?.date ?? rawCommit.commit.author?.date),
+        });
+      } catch (err: any) {
+        if (err.message?.includes('violates foreign key constraint')) {
+          this.logger.warn(`Repo ${fullName} was deleted during sync (FK constraint), stopping.`);
+          return;
+        }
+        throw err;
+      }
 
       processedShas.set(sha, commit.id);
 
@@ -147,7 +171,7 @@ export class IngestionService {
             if (commitId) releaseCommitIds.push(commitId);
           }
 
-          await this.sleep(300);
+          await this.sleep(1500); // rate limit buffer between release comparisons
         } catch (err: any) {
           this.logger.warn(`Could not compare commits for ${ghRelease.tag_name}: ${err.message}`);
         }
@@ -182,12 +206,14 @@ export class IngestionService {
         await this.releaseCommitsRepo.save({ releaseId: release.id, commitId });
       }
 
-      await this.sleep(200);
+      await this.sleep(1500); // rate limit buffer between release processing
     }
 
     // === STEP 3: Mark done ===
+    const actualCommitCount = await this.commitsRepo.count({ where: { repoId: repo.id } });
     await this.reposRepo.update(repo.id, {
       status: 'ready',
+      totalCommitsSynced: actualCommitCount,
       lastSyncedAt: new Date(),
     });
 

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import {
   DIFF_SUMMARY_PROMPT,
   CATEGORIZE_PROMPT,
@@ -13,29 +14,80 @@ const VALID_CATEGORIES = ['breaking', 'feature', 'fix', 'chore', 'docs', 'refact
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private genAI: GoogleGenerativeAI;
-  private flashModel: any;
+
+  // Kilo Code (OpenAI-compatible) for text generation
+  private kilo: OpenAI;
+  private kiloModel: string;
+
+  // Gemini for embeddings only
   private embeddingModel: any;
 
+  // Per-provider rate limiters
+  private lastKiloCall = 0;
+  private lastGeminiCall = 0;
+  private readonly kiloMinInterval = 1500;   // ~35 RPM 
+  private readonly geminiMinInterval = 800; // ~75 RPM 
+
   constructor(private config: ConfigService) {
-    this.genAI = new GoogleGenerativeAI(config.get<string>('GEMINI_API_KEY') ?? '');
-    this.flashModel = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    this.embeddingModel = this.genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
+    // Kilo Code gateway for free models, generous rate limits
+    this.kilo = new OpenAI({
+      baseURL: 'https://api.kilo.ai/api/gateway',
+      apiKey: config.get<string>('KILOCODE_API_KEY') ?? '',
+    });
+    this.kiloModel = config.get<string>('KILOCODE_MODEL') ?? 'kilo-auto/free';
+
+    // Gemini for embeddings only
+    const genAI = new GoogleGenerativeAI(config.get<string>('GEMINI_API_KEY') ?? '');
+    this.embeddingModel = genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
   }
 
   private async sleep(ms: number) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  private async generateText(prompt: string, maxRetries = 1): Promise<string> {
+  // Throttle for Kilo Code text gen calls to avoid hitting rate limits
+  private async throttleKilo() {
+    const elapsed = Date.now() - this.lastKiloCall;
+    if (elapsed < this.kiloMinInterval) {
+      await this.sleep(this.kiloMinInterval - elapsed);
+    }
+    this.lastKiloCall = Date.now();
+  }
+
+  // Throttle for Gemini embedding calls 
+  private async throttleGemini() {
+    const elapsed = Date.now() - this.lastGeminiCall;
+    if (elapsed < this.geminiMinInterval) {
+      await this.sleep(this.geminiMinInterval - elapsed);
+    }
+    this.lastGeminiCall = Date.now();
+  }
+
+  // Extract retry delay from 429 error 
+  private getRetryDelay(err: any): number {
+    const match = err?.message?.match(/retry in (\d+\.?\d*)s/i);
+    if (match) return Math.ceil(parseFloat(match[1]) * 1000);
+    return 15000;
+  }
+
+  // -- Text generation via Kilo Code --
+
+  private async generateText(prompt: string, maxRetries = 3): Promise<string> {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        const result = await this.flashModel.generateContent(prompt);
-        return result.response.text().trim();
+        await this.throttleKilo();
+        const result = await this.kilo.chat.completions.create({
+          model: this.kiloModel,
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 500,
+        });
+        return (result.choices[0]?.message?.content ?? '').trim();
       } catch (err: any) {
-        if (err.status === 429 && attempt < maxRetries) {
-          this.logger.warn('Gemini rate limited, waiting 60s...');
-          await this.sleep(60000);
+        const isRateLimit = err.status === 429 || err.status === 503;
+        if (isRateLimit && attempt < maxRetries) {
+          const delay = this.getRetryDelay(err) * (attempt + 1);
+          this.logger.warn(`Kilo rate limited (${err.status}), waiting ${delay / 1000}s (attempt ${attempt + 1}/${maxRetries})...`);
+          await this.sleep(delay);
         } else {
           throw err;
         }
@@ -44,15 +96,29 @@ export class AiService {
     return '';
   }
 
+  // -- Embeddings via Gemini --
+
   async generateEmbedding(text: string): Promise<number[]> {
-    try {
-      const result = await this.embeddingModel.embedContent(text.slice(0, 2000));
-      return result.embedding.values;
-    } catch (err: any) {
-      this.logger.error('Embedding failed:', err.message);
-      return [];
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await this.throttleGemini();
+        const result = await this.embeddingModel.embedContent(text.slice(0, 2000));
+        return result.embedding.values;
+      } catch (err: any) {
+        if (err.status === 429 && attempt < 2) {
+          const delay = this.getRetryDelay(err) * (attempt + 1);
+          this.logger.warn(`Gemini embedding rate limited, waiting ${delay / 1000}s...`);
+          await this.sleep(delay);
+        } else {
+          this.logger.error('Embedding failed:', err.message);
+          return [];
+        }
+      }
     }
+    return [];
   }
+
+  //  Public API 
 
   async generateDiffSummary(diff: string): Promise<string> {
     try {
