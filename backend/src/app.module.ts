@@ -11,7 +11,6 @@ import { ReleasesModule } from './releases/releases.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { JobsModule } from './jobs/jobs.module';
 import { AiModule } from './ai/ai.module';
-import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -47,7 +46,6 @@ import { MailModule } from './mail/mail.module';
     AnalyticsModule,
     JobsModule,
     AiModule,
-    MailModule,
   ],
   controllers: [AppController],
 })

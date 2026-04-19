@@ -1,9 +1,10 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Param, Query, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiOkResponse, ApiNotFoundResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { CommitsService } from './commits.service';
 import { ListCommitsDto } from './dto/list-commits.dto';
+import { SearchCommitsDto } from './dto/search-commits.dto';
 import { ReposService } from '../repos/repos.service';
 
 @ApiTags('commits')
@@ -41,5 +42,17 @@ export class CommitsController {
     // Verify user owns the repo
     await this.reposService.findOne(repoId, user.id);
     return this.commitsService.findOne(repoId, sha);
+  }
+
+  @Post('search')
+  @ApiOperation({ summary: 'Semantic search over commits using natural language' })
+  @ApiOkResponse({ description: 'Ranked list of commits matching the query' })
+  async search(
+    @Param('repoId') repoId: string,
+    @Body() body: SearchCommitsDto,
+    @CurrentUser() user: any,
+  ) {
+    await this.reposService.findOne(repoId, user.id);
+    return this.commitsService.semanticSearch(repoId, body.query, body.limit);
   }
 }
