@@ -20,16 +20,16 @@ export default function ReleasesPage() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    getRepo(repoId).then(setRepo).catch(() => {});
-  }, [repoId]);
-
-  useEffect(() => {
     setLoading(true);
     setError(null);
-    getReleases(repoId, { page, limit: 20 })
-      .then((res) => {
-        setReleases(res.data);
-        setMeta(res.meta);
+    Promise.all([
+      getRepo(repoId),
+      getReleases(repoId, { page, limit: 20 }),
+    ])
+      .then(([repoData, releasesRes]) => {
+        setRepo(repoData);
+        setReleases(releasesRes.data);
+        setMeta(releasesRes.meta);
       })
       .catch((err) => {
         setError(err.response?.data?.message || "Failed to fetch releases");

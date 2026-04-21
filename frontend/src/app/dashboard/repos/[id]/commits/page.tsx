@@ -2,10 +2,11 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { getCommits, getRepo } from "@/lib/api";
-import type { Commit, Repo, PaginatedResponse } from "@/lib/types";
+import { getCommits, getRepo, searchCommits } from "@/lib/api";
+import type { Commit, Repo, PaginatedResponse, SearchResult } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import SemanticSearchBar from "@/components/commits/SemanticSearchBar";
 
 const CATEGORY_COLORS: Record<string, string> = {
   breaking: "bg-red-500/15 text-red-400 border-red-500/30",
@@ -30,17 +31,37 @@ export default function CommitsPage() {
   const [category, setCategory] = useState<string>("");
   const [page, setPage] = useState(1);
 
-  useEffect(() => {
-    getRepo(repoId).then(setRepo).catch(() => {});
-  }, [repoId]);
+  // Semantic search state
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [isSearchMode, setIsSearchMode] = useState(false);
+
+  const handleSearch = async (query: string) => {
+    setSearchLoading(true);
+    setSearchError(null);
+    setIsSearchMode(true);
+    try {
+      const res = await searchCommits(repoId, query, 10);
+      setSearchResults(res.results);
+    } catch (err: any) {
+      setSearchError(err.response?.data?.message || "Search failed");
+    } finally {
+      setSearchLoading(false);
+    }
+  };
 
   useEffect(() => {
     setLoading(true);
     setError(null);
-    getCommits(repoId, { page, limit: 20, ...(category ? { category } : {}) })
-      .then((res) => {
-        setCommits(res.data);
-        setMeta(res.meta);
+    Promise.all([
+      getRepo(repoId),
+      getCommits(repoId, { page, limit: 20, ...(category ? { category } : {}) }),
+    ])
+      .then(([repoData, commitsRes]) => {
+        setRepo(repoData);
+        setCommits(commitsRes.data);
+        setMeta(commitsRes.meta);
       })
       .catch((err) => {
         setError(err.response?.data?.message || "Failed to fetch commits");
@@ -75,7 +96,7 @@ export default function CommitsPage() {
         <Badge
           variant="outline"
           className={`cursor-pointer transition-all ${!category ? "bg-primary text-primary-foreground border-primary" : "hover:bg-accent"}`}
-          onClick={() => { setCategory(""); setPage(1); }}
+          onClick={() => { setCategory(""); setPage(1); setIsSearchMode(false); setSearchResults([]); }}
         >
           All
         </Badge>
@@ -84,12 +105,30 @@ export default function CommitsPage() {
             key={cat}
             variant="outline"
             className={`cursor-pointer transition-all capitalize ${category === cat ? CATEGORY_COLORS[cat] + " border" : "hover:bg-accent"}`}
-            onClick={() => { setCategory(cat); setPage(1); }}
+            onClick={() => { setCategory(cat); setPage(1); setIsSearchMode(false); setSearchResults([]); }}
           >
             {cat}
           </Badge>
         ))}
+        {isSearchMode && (
+          <Badge
+            variant="outline"
+            className="cursor-pointer bg-violet-600/15 text-violet-400 border-violet-500/30"
+            onClick={() => { setIsSearchMode(false); setSearchResults([]); }}
+          >
+            Clear search
+          </Badge>
+        )}
       </div>
+
+      {/* Semantic search */}
+      <SemanticSearchBar
+        repoId={repoId}
+        onSearch={handleSearch}
+        results={searchResults}
+        loading={searchLoading}
+        error={searchError}
+      />
 
       {/* Loading */}
       {loading && (

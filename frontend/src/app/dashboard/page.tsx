@@ -1,10 +1,15 @@
 "use client";
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { RepoCard } from "@/components/repos/RepoCard";
-import { ConnectRepoModal } from "@/components/repos/ConnectRepoModal";
 import { getRepos, createRepo, syncRepo, deleteRepo, getRepoStatus } from "@/lib/api";
 import type { Repo } from "@/lib/types";
+
+const ConnectRepoModal = dynamic(
+  () => import("@/components/repos/ConnectRepoModal").then((m) => m.ConnectRepoModal),
+  { ssr: false }
+);
 
 export default function DashboardPage() {
   const [repos, setRepos] = useState<Repo[]>([]);

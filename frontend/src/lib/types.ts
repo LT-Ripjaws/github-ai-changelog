@@ -79,3 +79,25 @@ export interface PaginatedResponse<T> {
     totalPages: number;
   };
 }
+
+export interface SearchResult {
+  id: string;
+  sha: string;
+  message: string;
+  authorName: string | null;
+  authorGithubLogin: string | null;
+  diffSummary: string | null;
+  aiChangelog: string | null;
+  category: string | null;
+  filesChanged: number;
+  additions: number;
+  deletions: number;
+  committedAt: string;
+  similarity: number;
+}
+
+export interface Analytics {
+  totalCommits: number;
+  commitsByCategory: Record<string, number>;
+  commitsByMonth: { month: string; count: number }[];
+}

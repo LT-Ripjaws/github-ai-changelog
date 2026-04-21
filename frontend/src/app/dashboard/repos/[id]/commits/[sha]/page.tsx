@@ -26,13 +26,16 @@ export default function CommitDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getRepo(repoId).then(setRepo).catch(() => {});
-  }, [repoId]);
-
-  useEffect(() => {
     setLoading(true);
-    getCommit(repoId, sha)
-      .then(setCommit)
+    setError(null);
+    Promise.all([
+      getRepo(repoId),
+      getCommit(repoId, sha),
+    ])
+      .then(([repoData, commitData]) => {
+        setRepo(repoData);
+        setCommit(commitData);
+      })
       .catch((err) => setError(err.response?.data?.message || "Commit not found"))
       .finally(() => setLoading(false));
   }, [repoId, sha]);

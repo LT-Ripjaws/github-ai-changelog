@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { User, Repo, RepoStatus, Commit, Release, PaginatedResponse } from './types';
+import type { User, Repo, RepoStatus, Commit, Release, PaginatedResponse, SearchResult, Analytics } from './types';
 
 const api = axios.create({ baseURL: process.env.NEXT_PUBLIC_API_URL });
 
@@ -48,5 +48,13 @@ export const getReleases = (repoId: string, params?: { page?: number; limit?: nu
 
 export const getRelease = (repoId: string, id: string) =>
   api.get<Release>(`/repos/${repoId}/releases/${id}`).then(r => r.data);
+
+// Semantic Search
+export const searchCommits = (repoId: string, query: string, limit?: number) =>
+  api.post<{ results: SearchResult[] }>(`/repos/${repoId}/commits/search`, { query, limit }).then(r => r.data);
+
+// Analytics
+export const getAnalytics = (repoId: string, params?: { from?: string; to?: string }) =>
+  api.get<Analytics>(`/repos/${repoId}/analytics`, { params }).then(r => r.data);
 
 export default api;

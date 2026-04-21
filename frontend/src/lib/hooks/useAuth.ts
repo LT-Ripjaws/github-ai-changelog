@@ -9,15 +9,10 @@ export function useAuth() {
 
   useEffect(() => {
     const token = localStorage.getItem('jwt_token');
-    console.log('[useAuth] token exists:', !!token);
     if (!token) { setLoading(false); return; }
     getMe()
-      .then((u) => {
-        console.log('[useAuth] getMe success:', u.username);
-        setUser(u);
-      })
-      .catch((err) => {
-        console.log('[useAuth] getMe failed:', err?.response?.status);
+      .then((u) => setUser(u))
+      .catch(() => {
         localStorage.removeItem('jwt_token');
         setUser(null);
       })
@@ -25,10 +20,8 @@ export function useAuth() {
   }, []);
 
   const logout = () => {
-    console.log('[useAuth] logout called, clearing token');
     localStorage.removeItem('jwt_token');
     setUser(null);
-    // Use replace to prevent back button from returning to authenticated state
     window.location.replace('/');
   };
 
