@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiOkResponse, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiOkResponse, ApiQuery, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AnalyticsService } from './analytics.service';
@@ -18,6 +18,7 @@ export class AnalyticsController {
 
   @Get()
   @ApiOperation({ summary: 'Get commit analytics for a repo' })
+  @ApiParam({ name: 'repoId', description: 'Repository UUID' })
   @ApiOkResponse({ description: 'Commit statistics and breakdowns' })
   @ApiQuery({ name: 'from', required: false, description: 'Start date (ISO 8601 format)' })
   @ApiQuery({ name: 'to', required: false, description: 'End date (ISO 8601 format)' })

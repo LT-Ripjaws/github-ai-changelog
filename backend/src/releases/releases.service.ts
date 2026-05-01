@@ -33,4 +33,12 @@ export class ReleasesService {
     }
     return release;
   }
+
+  async findByTagName(repoId: string, tagName: string): Promise<ReleaseEntity> {
+    const release = await this.releasesRepo.findOne({ where: { repoId, tagName } });
+    if (!release) {
+      throw new NotFoundException('Release not found');
+    }
+    return release;
+  }
 }

@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { GithubAuthGuard } from '../common/guards/github-auth.guard';
@@ -18,10 +18,14 @@ export class AuthController {
 
   @Get('github')
   @UseGuards(GithubAuthGuard)
+  @ApiOperation({ summary: 'Initiate GitHub OAuth login' })
+  @ApiResponse({ status: 302, description: 'Redirects to GitHub for authorization' })
   githubLogin() { /* Passport handles redirect */ }
 
   @Get('github/callback')
   @UseGuards(GithubAuthGuard)
+  @ApiOperation({ summary: 'GitHub OAuth callback' })
+  @ApiResponse({ status: 302, description: 'Redirects to frontend with JWT token or error' })
   async githubCallback(@Req() req: any, @Res() res: any) {
     if (!req.user) {
       // Auth failed: redirect to frontend with error
@@ -35,6 +39,9 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current authenticated user' })
+  @ApiResponse({ status: 200, description: 'User profile (accessToken excluded)' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async me(@CurrentUser() user: { id: string }) {
     const fullUser = await this.usersService.findById(user.id);
     if (!fullUser) return null;
@@ -45,6 +52,8 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @ApiOperation({ summary: 'Log out (client-side token removal)' })
+  @ApiResponse({ status: 200, description: 'Logged out successfully' })
   logout() {
     return { message: 'Logged out' };
   }
