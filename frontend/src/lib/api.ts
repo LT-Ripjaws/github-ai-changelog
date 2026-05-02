@@ -49,6 +49,9 @@ export const getReleases = (repoId: string, params?: { page?: number; limit?: nu
 export const getRelease = (repoId: string, id: string) =>
   api.get<Release>(`/repos/${repoId}/releases/${id}`).then(r => r.data);
 
+export const getReleaseByTagName = (repoId: string, tagName: string) =>
+  api.get<Release>(`/repos/${repoId}/releases/tag/${encodeURIComponent(tagName)}`).then(r => r.data);
+
 // Semantic Search
 export const searchCommits = (repoId: string, query: string, limit?: number) =>
   api.post<{ results: SearchResult[] }>(`/repos/${repoId}/commits/search`, { query, limit }).then(r => r.data);

@@ -6,6 +6,8 @@ import { getCommits, getRepo, searchCommits } from "@/lib/api";
 import type { Commit, Repo, PaginatedResponse, SearchResult } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SkeletonCommitRow } from "@/components/ui/skeleton";
+import { EmptyCommits, EmptySearch } from "@/components/ui/empty-state";
 import SemanticSearchBar from "@/components/commits/SemanticSearchBar";
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -73,30 +75,32 @@ export default function CommitsPage() {
     new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
   const truncate = (s: string, len: number) =>
-    s.length > len ? s.slice(0, len) + "..." : s;
+    s.length > len ? s.slice(0, len) + "\u2026" : s;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-          <Link href="/dashboard" className="hover:text-foreground transition-colors">Repositories</Link>
-          <span>/</span>
-          <Link href="/dashboard" className="hover:text-foreground transition-colors">{repo?.fullName || "..."}</Link>
-          <span>/</span>
-          <span className="text-foreground">Commits</span>
+        <div className="flex items-center gap-2 text-sm text-text-tertiary mb-2">
+          <Link href="/dashboard" className="hover:text-text-primary transition-colors">Repositories</Link>
+          <span aria-hidden="true">/</span>
+          <Link href="/dashboard" className="hover:text-text-primary transition-colors">{repo?.fullName || "..."}</Link>
+          <span aria-hidden="true">/</span>
+          <span className="text-text-primary">Commits</span>
         </div>
-        <h1 className="text-2xl font-bold">
-          Commits {meta.total > 0 && <span className="text-muted-foreground font-normal text-lg">({meta.total})</span>}
+        <h1 className="text-2xl font-medium text-text-primary text-balance font-feature-settings-cv01-ss03" style={{ letterSpacing: "-0.288px" }}>
+          Commits {meta.total > 0 && <span className="text-text-tertiary font-normal text-lg tabular-nums">({meta.total})</span>}
         </h1>
       </div>
 
       {/* Category filter */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by category">
         <Badge
           variant="outline"
-          className={`cursor-pointer transition-all ${!category ? "bg-primary text-primary-foreground border-primary" : "hover:bg-accent"}`}
+          className={`cursor-pointer transition-colors badge-linear-neutral ${!category ? "bg-brand-indigo text-white border-brand-indigo" : ""}`}
           onClick={() => { setCategory(""); setPage(1); setIsSearchMode(false); setSearchResults([]); }}
+          role="button"
+          aria-pressed={!category}
         >
           All
         </Badge>
@@ -104,8 +108,10 @@ export default function CommitsPage() {
           <Badge
             key={cat}
             variant="outline"
-            className={`cursor-pointer transition-all capitalize ${category === cat ? CATEGORY_COLORS[cat] + " border" : "hover:bg-accent"}`}
+            className={`cursor-pointer transition-colors capitalize badge-linear-neutral ${category === cat ? CATEGORY_COLORS[cat] + " border" : ""}`}
             onClick={() => { setCategory(cat); setPage(1); setIsSearchMode(false); setSearchResults([]); }}
+            role="button"
+            aria-pressed={category === cat}
           >
             {cat}
           </Badge>
@@ -113,8 +119,9 @@ export default function CommitsPage() {
         {isSearchMode && (
           <Badge
             variant="outline"
-            className="cursor-pointer bg-violet-600/15 text-violet-400 border-violet-500/30"
+            className="cursor-pointer badge-linear-neutral bg-violet-600/15 text-violet-400 border-violet-500/30"
             onClick={() => { setIsSearchMode(false); setSearchResults([]); }}
+            role="button"
           >
             Clear search
           </Badge>
@@ -134,14 +141,14 @@ export default function CommitsPage() {
       {loading && (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-20 bg-muted rounded-lg animate-pulse" />
+            <SkeletonCommitRow key={i} />
           ))}
         </div>
       )}
 
       {/* Error */}
       {error && (
-        <div className="p-4 bg-destructive/10 rounded-lg">
+        <div className="p-4 bg-destructive/10 rounded-md border border-destructive/20" role="alert">
           <p className="text-destructive">{error}</p>
         </div>
       )}
@@ -149,63 +156,104 @@ export default function CommitsPage() {
       {/* Commits list */}
       {!loading && !error && (
         <>
-          {commits.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-12 w-12 mb-4 opacity-50">
-                <circle cx="12" cy="12" r="3" /><line x1="3" y1="12" x2="9" y2="12" /><line x1="15" y1="12" x2="21" y2="12" />
-              </svg>
-              <p>No commits found{category ? ` in "${category}" category` : ""}</p>
-            </div>
+          {isSearchMode ? (
+            searchResults.length === 0 ? (
+              <EmptySearch query="your search" />
+            ) : (
+              <div className="space-y-2">
+                {searchResults.map((result) => (
+                  <Link
+                    key={result.id}
+                    href={`/dashboard/repos/${repoId}/commits/${result.sha}`}
+                    className="block card-linear p-4 hover:border-brand-indigo/20 transition-all"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <code className="text-xs bg-surface-2 px-1.5 py-0.5 rounded font-mono text-text-tertiary">
+                            {result.sha.slice(0, 7)}
+                          </code>
+                          {result.category && (
+                            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 capitalize ${CATEGORY_COLORS[result.category] || ""}`}>
+                              {result.category}
+                            </Badge>
+                          )}
+                          <span className="text-xs text-text-tertiary tabular-nums">
+                            {(result.similarity * 100).toFixed(1)}% match
+                          </span>
+                        </div>
+                        <p className="text-sm font-medium text-text-primary truncate">{truncate(result.message.split("\n")[0], 120)}</p>
+                        {result.aiChangelog && (
+                          <p className="text-xs text-text-secondary mt-1 truncate">{truncate(result.aiChangelog, 150)}</p>
+                        )}
+                      </div>
+                      <div className="text-right text-xs text-text-tertiary whitespace-nowrap flex flex-col items-end gap-1 tabular-nums">
+                        <span>{formatDate(result.committedAt)}</span>
+                        <div className="flex gap-2">
+                          <span className="text-emerald-400">+{result.additions}</span>
+                          <span className="text-red-400">-{result.deletions}</span>
+                          <span>{result.filesChanged}f</span>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )
           ) : (
-            <div className="space-y-2">
-              {commits.map((commit) => (
-                <Link
-                  key={commit.id}
-                  href={`/dashboard/repos/${repoId}/commits/${commit.sha}`}
-                  className="block border rounded-lg p-4 hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono text-muted-foreground">
-                          {commit.sha.slice(0, 7)}
-                        </code>
-                        {commit.category && (
-                          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 capitalize ${CATEGORY_COLORS[commit.category] || ""}`}>
-                            {commit.category}
-                          </Badge>
-                        )}
-                        {commit.isMergeCommit && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">merge</Badge>
+            commits.length === 0 ? (
+              <EmptyCommits />
+            ) : (
+              <div className="space-y-2">
+                {commits.map((commit) => (
+                  <Link
+                    key={commit.id}
+                    href={`/dashboard/repos/${repoId}/commits/${commit.sha}`}
+                    className="block card-linear p-4 hover:border-brand-indigo/20 transition-all"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <code className="text-xs bg-surface-2 px-1.5 py-0.5 rounded font-mono text-text-tertiary">
+                            {commit.sha.slice(0, 7)}
+                          </code>
+                          {commit.category && (
+                            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 capitalize ${CATEGORY_COLORS[commit.category] || ""}`}>
+                              {commit.category}
+                            </Badge>
+                          )}
+                          {commit.isMergeCommit && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 badge-linear-neutral">merge</Badge>
+                          )}
+                        </div>
+                        <p className="text-sm font-medium text-text-primary truncate">{truncate(commit.message.split("\n")[0], 120)}</p>
+                        {commit.aiChangelog && (
+                          <p className="text-xs text-text-secondary mt-1 truncate">{truncate(commit.aiChangelog, 150)}</p>
                         )}
                       </div>
-                      <p className="text-sm font-medium truncate">{truncate(commit.message.split("\n")[0], 120)}</p>
-                      {commit.aiChangelog && (
-                        <p className="text-xs text-muted-foreground mt-1 truncate">{truncate(commit.aiChangelog, 150)}</p>
-                      )}
-                    </div>
-                    <div className="text-right text-xs text-muted-foreground whitespace-nowrap flex flex-col items-end gap-1">
-                      <span>{formatDate(commit.committedAt)}</span>
-                      <div className="flex gap-2">
-                        <span className="text-emerald-400">+{commit.additions}</span>
-                        <span className="text-red-400">-{commit.deletions}</span>
-                        <span>{commit.filesChanged}f</span>
+                      <div className="text-right text-xs text-text-tertiary whitespace-nowrap flex flex-col items-end gap-1 tabular-nums">
+                        <span>{formatDate(commit.committedAt)}</span>
+                        <div className="flex gap-2">
+                          <span className="text-emerald-400">+{commit.additions}</span>
+                          <span className="text-red-400">-{commit.deletions}</span>
+                          <span>{commit.filesChanged}f</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
+                  </Link>
+                ))}
+              </div>
+            )
           )}
 
           {/* Pagination */}
           {meta.totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 pt-4">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="btn-linear-subtle">
                 Previous
               </Button>
-              <span className="text-sm text-muted-foreground">Page {meta.page} of {meta.totalPages}</span>
-              <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>
+              <span className="text-sm text-text-tertiary tabular-nums">Page {meta.page} of {meta.totalPages}</span>
+              <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)} className="btn-linear-subtle">
                 Next
               </Button>
             </div>

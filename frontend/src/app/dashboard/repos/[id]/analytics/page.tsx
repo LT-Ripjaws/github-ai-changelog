@@ -2,11 +2,22 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { getRepo, getAnalytics } from "@/lib/api";
 import type { Repo, Analytics } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import CategoryPieChart from "@/components/analytics/CategoryPieChart";
-import CommitsOverTimeChart from "@/components/analytics/CommitsOverTimeChart";
+import { SkeletonChart } from "@/components/ui/skeleton";
+import { EmptyAnalytics } from "@/components/ui/empty-state";
+
+const CategoryPieChart = dynamic(
+  () => import("@/components/analytics/CategoryPieChart"),
+  { ssr: false, loading: () => <SkeletonChart /> }
+);
+
+const CommitsOverTimeChart = dynamic(
+  () => import("@/components/analytics/CommitsOverTimeChart"),
+  { ssr: false, loading: () => <SkeletonChart /> }
+);
 
 export default function AnalyticsPage() {
   const params = useParams();
@@ -18,14 +29,16 @@ export default function AnalyticsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getRepo(repoId).then(setRepo).catch(() => {});
-  }, [repoId]);
-
-  useEffect(() => {
     setLoading(true);
     setError(null);
-    getAnalytics(repoId)
-      .then(setAnalytics)
+    Promise.all([
+      getRepo(repoId),
+      getAnalytics(repoId),
+    ])
+      .then(([repoData, analyticsData]) => {
+        setRepo(repoData);
+        setAnalytics(analyticsData);
+      })
       .catch((err) => setError(err.response?.data?.message || "Failed to load analytics"))
       .finally(() => setLoading(false));
   }, [repoId]);
@@ -34,61 +47,67 @@ export default function AnalyticsPage() {
     <div className="space-y-6">
       {/* Breadcrumb */}
       <div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-          <Link href="/dashboard" className="hover:text-foreground transition-colors">Repositories</Link>
+        <div className="flex items-center gap-2 text-sm text-text-tertiary mb-2">
+          <Link href="/dashboard" className="hover:text-text-primary transition-colors">Repositories</Link>
           <span>/</span>
-          <Link href="/dashboard" className="hover:text-foreground transition-colors">{repo?.fullName || "..."}</Link>
+          <Link href="/dashboard" className="hover:text-text-primary transition-colors">{repo?.fullName || "..."}</Link>
           <span>/</span>
-          <span className="text-foreground">Analytics</span>
+          <span className="text-text-primary">Analytics</span>
         </div>
-        <h1 className="text-2xl font-bold">Analytics</h1>
+        <h1 className="text-2xl font-medium text-text-primary text-balance font-feature-settings-cv01-ss03" style={{ letterSpacing: "-0.288px" }}>Analytics</h1>
       </div>
 
       {loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="h-64 bg-muted rounded-lg animate-pulse" />
-          <div className="h-64 bg-muted rounded-lg animate-pulse" />
+          <SkeletonChart />
+          <SkeletonChart />
         </div>
       )}
 
       {error && (
-        <div className="p-4 bg-destructive/10 rounded-lg">
+        <div className="p-4 bg-destructive/10 rounded-md border border-destructive/20">
           <p className="text-destructive">{error}</p>
         </div>
       )}
 
       {analytics && !loading && (
         <>
-          {/* Summary card */}
-          <Card className="bg-zinc-900/50 border-zinc-800">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium text-zinc-400">Total Commits</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-4xl font-bold">{analytics.totalCommits}</p>
-            </CardContent>
-          </Card>
+          {analytics.totalCommits === 0 ? (
+            <EmptyAnalytics />
+          ) : (
+            <>
+              {/* Summary card */}
+              <Card className="card-linear animate-fade-in-up">
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium text-text-tertiary font-feature-settings-cv01-ss03">Total Commits</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-4xl font-medium text-text-primary tabular-nums font-feature-settings-cv01-ss03">{analytics.totalCommits}</p>
+                </CardContent>
+              </Card>
 
-          {/* Charts */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="bg-zinc-900/50 border-zinc-800">
-              <CardHeader>
-                <CardTitle className="text-sm font-medium text-zinc-400">Commits by Category</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CategoryPieChart data={analytics.commitsByCategory} />
-              </CardContent>
-            </Card>
+              {/* Charts */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card className="card-linear animate-fade-in-up animate-delay-100">
+                  <CardHeader>
+                    <CardTitle className="text-sm font-medium text-text-tertiary font-feature-settings-cv01-ss03">Commits by Category</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CategoryPieChart data={analytics.commitsByCategory} />
+                  </CardContent>
+                </Card>
 
-            <Card className="bg-zinc-900/50 border-zinc-800">
-              <CardHeader>
-                <CardTitle className="text-sm font-medium text-zinc-400">Commits Over Time</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CommitsOverTimeChart data={analytics.commitsByMonth} />
-              </CardContent>
-            </Card>
-          </div>
+                <Card className="card-linear animate-fade-in-up animate-delay-200">
+                  <CardHeader>
+                    <CardTitle className="text-sm font-medium text-text-tertiary font-feature-settings-cv01-ss03">Commits Over Time</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CommitsOverTimeChart data={analytics.commitsByMonth} />
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          )}
         </>
       )}
     </div>

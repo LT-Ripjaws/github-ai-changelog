@@ -1,4 +1,5 @@
 "use client";
+import { memo } from "react";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 const COLORS: Record<string, string> = {
@@ -14,7 +15,7 @@ interface Props {
   data: Record<string, number>;
 }
 
-export default function CategoryPieChart({ data }: Props) {
+export default memo(function CategoryPieChart({ data }: Props) {
   const chartData = Object.entries(data)
     .filter(([_, count]) => count > 0)
     .map(([name, value]) => ({
@@ -25,7 +26,7 @@ export default function CategoryPieChart({ data }: Props) {
 
   if (chartData.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-zinc-500 text-sm">
+      <div className="flex items-center justify-center h-64 text-text-tertiary text-sm">
         No commit data yet
       </div>
     );
@@ -50,14 +51,22 @@ export default function CategoryPieChart({ data }: Props) {
         </Pie>
         <Tooltip
           contentStyle={{
-            background: "#18181b",
-            border: "1px solid #3f3f46",
-            borderRadius: "8px",
-            color: "#e4e4e7",
+            background: "hsl(var(--card))",
+            border: "1px solid hsl(var(--border-standard))",
+            borderRadius: "6px",
+            color: "hsl(var(--text-primary))",
+            fontFamily: "Inter, system-ui, sans-serif",
+            fontSize: "12px",
           }}
         />
-        <Legend />
+        <Legend 
+          wrapperStyle={{
+            fontFamily: "Inter, system-ui, sans-serif",
+            fontSize: "12px",
+            color: "hsl(var(--text-secondary))",
+          }}
+        />
       </PieChart>
     </ResponsiveContainer>
   );
-}
+});

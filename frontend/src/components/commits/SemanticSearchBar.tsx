@@ -35,47 +35,54 @@ export default function SemanticSearchBar({ repoId, onSearch, results, loading, 
     <div className="space-y-4">
       <form onSubmit={handleSubmit} className="flex gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-tertiary pointer-events-none" aria-hidden="true" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search commits with natural language (e.g. 'auth changes', 'database fixes')..."
-            className="pl-10 bg-zinc-900/50 border-zinc-800 text-zinc-100 placeholder:text-zinc-500"
+            placeholder="Search commits with natural language (e.g. 'auth changes'…"
+            aria-label="Search commits"
+            autoComplete="off"
+            className="input-linear pl-10"
           />
         </div>
-        <Button type="submit" disabled={loading || !query.trim()} className="bg-violet-600 hover:bg-violet-500">
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
+        <Button
+          type="submit"
+          disabled={loading || !query.trim()}
+          className="btn-linear-primary"
+          aria-label={loading ? "Searching…" : "Search commits"}
+        >
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : "Search"}
         </Button>
       </form>
 
       {error && (
-        <p className="text-sm text-red-400">{error}</p>
+        <p className="text-sm text-destructive" role="alert">{error}</p>
       )}
 
       {results.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-xs text-zinc-500">{results.length} result{results.length !== 1 ? "s" : ""}</p>
+        <div className="space-y-2" aria-live="polite">
+          <p className="text-xs text-text-tertiary">{results.length} result{results.length !== 1 ? "s" : ""}</p>
           {results.map((r) => (
             <a
               key={r.id}
               href={`/dashboard/repos/${repoId}/commits/${r.sha}`}
-              className="block p-3 rounded-lg border border-zinc-800 bg-zinc-900/30 hover:bg-zinc-800/50 transition-colors"
+              className="block p-3 rounded-md card-linear hover:border-brand-indigo/20 transition-all"
             >
               <div className="flex items-center gap-2 mb-1">
-                <code className="text-xs text-zinc-400 font-mono">{r.sha.slice(0, 7)}</code>
+                <code className="text-xs text-text-tertiary font-mono bg-surface-2 px-1.5 py-0.5 rounded">{r.sha.slice(0, 7)}</code>
                 {r.category && (
                   <Badge variant="outline" className={`text-xs ${CATEGORY_COLORS[r.category] ?? ""}`}>
                     {r.category}
                   </Badge>
                 )}
-                <span className="text-xs text-zinc-600 ml-auto">
+                <span className="text-xs text-text-tertiary ml-auto tabular-nums">
                   {Math.round(r.similarity * 100)}% match
                 </span>
               </div>
-              <p className="text-sm text-zinc-200 line-clamp-2">
+              <p className="text-sm text-text-primary line-clamp-2">
                 {r.aiChangelog || r.message}
               </p>
-              <div className="flex gap-3 mt-1 text-xs text-zinc-500">
+              <div className="flex gap-3 mt-1 text-xs text-text-tertiary tabular-nums">
                 <span>+{r.additions} -{r.deletions}</span>
                 <span>{r.filesChanged} files</span>
               </div>

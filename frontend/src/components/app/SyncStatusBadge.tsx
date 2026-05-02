@@ -9,22 +9,22 @@ export function SyncStatusBadge({ status }: SyncStatusBadgeProps) {
   const getStatusConfig = () => {
     switch (status) {
       case 'pending':
-        return { label: 'Pending', variant: 'secondary' as const };
+        return { label: 'Pending', className: 'badge-linear-neutral' };
       case 'syncing':
-        return { label: 'Syncing...', variant: 'default' as const };
+        return { label: 'Syncing...', className: 'bg-brand-indigo/10 text-brand-indigo border border-brand-indigo/20' };
       case 'ready':
-        return { label: 'Ready', variant: 'default' as const };
+        return { label: 'Ready', className: 'badge-linear-success' };
       case 'error':
-        return { label: 'Error', variant: 'destructive' as const };
+        return { label: 'Error', className: 'bg-destructive/10 text-destructive border border-destructive/20' };
       default:
-        return { label: 'Unknown', variant: 'outline' as const };
+        return { label: 'Unknown', className: 'badge-linear-neutral' };
     }
   };
 
   const config = getStatusConfig();
 
   return (
-    <Badge variant={config.variant} className="text-xs">
+    <Badge className={`text-xs ${config.className}`}>
       {config.label}
     </Badge>
   );

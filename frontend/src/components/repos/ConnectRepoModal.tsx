@@ -45,10 +45,10 @@ export function ConnectRepoModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md card-linear">
         <CardHeader>
-          <CardTitle>Connect Repository</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-lg font-medium text-text-primary font-feature-settings-cv01-ss03">Connect Repository</CardTitle>
+          <CardDescription className="text-text-secondary">
             Enter the GitHub repository in owner/repo format
           </CardDescription>
         </CardHeader>
@@ -62,6 +62,7 @@ export function ConnectRepoModal({
                 disabled={loading}
                 pattern="^[\w.-]+\/[\w.-]+$"
                 title="Format: owner/repo"
+                className="input-linear"
               />
               {error && (
                 <p className="text-sm text-destructive">{error}</p>
@@ -73,10 +74,11 @@ export function ConnectRepoModal({
                 variant="outline"
                 onClick={onClose}
                 disabled={loading}
+                className="btn-linear-ghost"
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading || !fullName.trim()}>
+              <Button type="submit" disabled={loading || !fullName.trim()} className="btn-linear-primary">
                 {loading ? "Connecting..." : "Connect"}
               </Button>
             </div>

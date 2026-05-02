@@ -4,11 +4,11 @@ import { Features } from "@/components/landing/Features";
 
 export default function Home() {
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen bg-surface-0">
       <Navbar />
       <Hero />
       <Features />
-      <footer className="py-8 text-center text-sm text-muted-foreground border-t">
+      <footer className="py-8 text-center text-sm text-text-tertiary border-t border-border-subtle">
         <p>&copy; {new Date().getFullYear()} RepoNarrate. All rights reserved.</p>
       </footer>
     </main>
