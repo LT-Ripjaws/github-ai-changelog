@@ -50,8 +50,12 @@ const config: Config = {
       },
       keyframes: {
         "fade-in-up": {
-          from: { opacity: "0", transform: "translateY(12px)" },
+          from: { opacity: "0", transform: "translateY(16px)" },
           to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "reveal-up": {
+          from: { opacity: "0", transform: "translateY(24px) scale(0.98)" },
+          to: { opacity: "1", transform: "translateY(0) scale(1)" },
         },
         "pulse-subtle": {
           "0%, 100%": { opacity: "1" },
@@ -59,7 +63,8 @@ const config: Config = {
         },
       },
       animation: {
-        "fade-in-up": "fade-in-up 0.5s ease-out both",
+        "fade-in-up": "fade-in-up 0.6s ease-out both",
+        "reveal-up": "reveal-up 0.7s ease-out both",
         "pulse-subtle": "pulse-subtle 2s ease-in-out infinite",
       },
     },
