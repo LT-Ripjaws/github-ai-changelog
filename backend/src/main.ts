@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { DataSource } from 'typeorm';
 import * as dotenv from 'dotenv';
+import helmet from 'helmet';
 dotenv.config();
 
 /** Ensure pgvector extension, table, and index exist.
@@ -31,6 +32,9 @@ async function ensurePgvectorSetup(dataSource: DataSource) {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Security headers: CSP, HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy
+  app.use(helmet());
 
   // Run pgvector migration on startup
   const dataSource = app.get(DataSource);
