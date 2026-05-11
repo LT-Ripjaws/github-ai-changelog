@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
-import { ThemeProvider } from "@/lib/theme-provider";
 import "./globals.css";
 
 const displayFont = Inter({
@@ -18,6 +17,10 @@ const monoFont = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "RepoNarrate",
   description: "AI-powered GitHub repository changelog and release notes generator",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({
@@ -40,10 +43,8 @@ export default function RootLayout({
       <body
         className={`${displayFont.variable} ${monoFont.variable} font-sans antialiased font-feature-settings-cv01-ss03`}
       >
-        <ThemeProvider>
-          <div className="grain-overlay" aria-hidden="true" />
-          {children}
-        </ThemeProvider>
+        <div className="grain-overlay" aria-hidden="true" />
+        {children}
       </body>
     </html>
   );
