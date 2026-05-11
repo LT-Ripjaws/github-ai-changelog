@@ -29,9 +29,9 @@ export function decrypt(encryptedData: string): string {
   const key = getKey();
   const parts = encryptedData.split(':');
 
-  // Legacy/plaintext token — not encrypted (backward compat during migration)
+  // Malformed input — not a valid encrypted token.
   if (parts.length !== 3) {
-    return encryptedData;
+    throw new Error('Invalid encrypted data format: expected iv:authTag:ciphertext');
   }
 
   const [ivHex, authTagHex, ciphertext] = parts;

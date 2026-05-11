@@ -25,7 +25,7 @@ export class AnalyticsController {
   async getAnalytics(
     @Param('repoId') repoId: string,
     @Query() query: AnalyticsQueryDto,
-    @CurrentUser() user?: any,
+    @CurrentUser() user: { id: string },
   ) {
     await this.reposService.findOne(repoId, user.id);
     return this.analyticsService.getAnalytics(repoId, query.from, query.to);

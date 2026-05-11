@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { HttpExceptionFilter, GenericExceptionFilter } from './common/filters/http-exception.filter';
 import { DataSource } from 'typeorm';
 import * as dotenv from 'dotenv';
 import helmet from 'helmet';
@@ -59,7 +59,7 @@ async function bootstrap() {
     new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true })
   );
 
-  app.useGlobalFilters(new HttpExceptionFilter());
+  app.useGlobalFilters(new HttpExceptionFilter(), new GenericExceptionFilter());
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Changelog Intelligence API')

@@ -20,3 +20,23 @@ export class HttpExceptionFilter implements ExceptionFilter {
     });
   }
 }
+
+/** Catches all unhandled exceptions (non-HttpException) and returns a
+ *  sanitized 500 response — no stack traces, no internal details leaked. */
+@Catch()
+export class GenericExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger('Exception');
+
+  catch(exception: Error, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const res = ctx.getResponse();
+
+    this.logger.error(`Unhandled: ${exception.message}`, exception.stack);
+
+    res.status(500).json({
+      statusCode: 500,
+      message: 'Internal server error',
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
