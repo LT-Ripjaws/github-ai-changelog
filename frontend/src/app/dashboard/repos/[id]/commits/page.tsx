@@ -82,9 +82,9 @@ export default function CommitsPage() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-2 text-sm text-text-tertiary mb-2">
-          <Link href="/dashboard" className="hover:text-text-primary transition-colors">Repositories</Link>
+          <Link href="/dashboard" className="hover:text-text-primary transition-colors" prefetch>Repositories</Link>
           <span aria-hidden="true">/</span>
-          <Link href="/dashboard" className="hover:text-text-primary transition-colors">{repo?.fullName || "..."}</Link>
+          <Link href={`/dashboard/repos/${repoId}`} className="hover:text-text-primary transition-colors" prefetch>{repo?.fullName || "..."}</Link>
           <span aria-hidden="true">/</span>
           <span className="text-text-primary">Commits</span>
         </div>
@@ -165,6 +165,7 @@ export default function CommitsPage() {
                   <Link
                     key={result.id}
                     href={`/dashboard/repos/${repoId}/commits/${result.sha}`}
+                    prefetch
                     className="block card-linear p-4 hover:border-brand-indigo/20 transition-all"
                   >
                     <div className="flex items-start justify-between gap-4">
@@ -209,6 +210,7 @@ export default function CommitsPage() {
                   <Link
                     key={commit.id}
                     href={`/dashboard/repos/${repoId}/commits/${commit.sha}`}
+                    prefetch
                     className="block card-linear p-4 hover:border-brand-indigo/20 transition-all"
                   >
                     <div className="flex items-start justify-between gap-4">

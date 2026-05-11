@@ -50,9 +50,9 @@ export default function ReleasesPage() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-2 text-sm text-text-tertiary mb-2">
-          <Link href="/dashboard" className="hover:text-text-primary transition-colors">Repositories</Link>
+          <Link href="/dashboard" className="hover:text-text-primary transition-colors" prefetch>Repositories</Link>
           <span aria-hidden="true">/</span>
-          <Link href="/dashboard" className="hover:text-text-primary transition-colors">{repo?.fullName || "..."}</Link>
+          <Link href={`/dashboard/repos/${repoId}`} className="hover:text-text-primary transition-colors" prefetch>{repo?.fullName || "..."}</Link>
           <span aria-hidden="true">/</span>
           <span className="text-text-primary">Releases</span>
         </div>
@@ -102,6 +102,7 @@ export default function ReleasesPage() {
                           <div className="flex items-center gap-3">
                             <Link
                               href={`/dashboard/repos/${repoId}/releases/${encodeURIComponent(release.tagName)}`}
+                              prefetch
                               className="text-lg font-medium text-text-primary hover:text-brand-indigo transition-colors font-feature-settings-cv01-ss03"
                               onClick={(e) => e.stopPropagation()}
                             >

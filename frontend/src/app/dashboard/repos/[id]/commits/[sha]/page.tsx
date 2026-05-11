@@ -77,11 +77,11 @@ export default function CommitDetailPage() {
     <div className="space-y-6">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-text-tertiary">
-        <Link href="/dashboard" className="hover:text-text-primary transition-colors">Repositories</Link>
+        <Link href="/dashboard" className="hover:text-text-primary transition-colors" prefetch>Repositories</Link>
         <span aria-hidden="true">/</span>
-        <Link href="/dashboard" className="hover:text-text-primary transition-colors">{repo?.fullName || "..."}</Link>
+        <Link href={`/dashboard/repos/${repoId}`} className="hover:text-text-primary transition-colors" prefetch>{repo?.fullName || "..."}</Link>
         <span aria-hidden="true">/</span>
-        <Link href={`/dashboard/repos/${repoId}/commits`} className="hover:text-text-primary transition-colors">Commits</Link>
+        <Link href={`/dashboard/repos/${repoId}/commits`} className="hover:text-text-primary transition-colors" prefetch>Commits</Link>
         <span aria-hidden="true">/</span>
         <code className="text-text-primary bg-surface-2 px-1.5 py-0.5 rounded font-mono text-xs">{commit.sha.slice(0, 7)}</code>
       </div>

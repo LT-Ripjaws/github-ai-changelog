@@ -48,9 +48,9 @@ export default function AnalyticsPage() {
       {/* Breadcrumb */}
       <div>
         <div className="flex items-center gap-2 text-sm text-text-tertiary mb-2">
-          <Link href="/dashboard" className="hover:text-text-primary transition-colors">Repositories</Link>
+          <Link href="/dashboard" className="hover:text-text-primary transition-colors" prefetch>Repositories</Link>
           <span>/</span>
-          <Link href="/dashboard" className="hover:text-text-primary transition-colors">{repo?.fullName || "..."}</Link>
+          <Link href={`/dashboard/repos/${repoId}`} className="hover:text-text-primary transition-colors" prefetch>{repo?.fullName || "..."}</Link>
           <span>/</span>
           <span className="text-text-primary">Analytics</span>
         </div>

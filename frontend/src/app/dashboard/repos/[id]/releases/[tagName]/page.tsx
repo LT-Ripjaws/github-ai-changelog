@@ -64,11 +64,11 @@ export default function ReleaseDetailPage() {
     <div className="space-y-6">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-text-tertiary">
-        <Link href="/dashboard" className="hover:text-text-primary transition-colors">Repositories</Link>
+        <Link href="/dashboard" className="hover:text-text-primary transition-colors" prefetch>Repositories</Link>
         <span aria-hidden="true">/</span>
-        <Link href="/dashboard" className="hover:text-text-primary transition-colors">{repo?.fullName || "..."}</Link>
+        <Link href={`/dashboard/repos/${repoId}`} className="hover:text-text-primary transition-colors" prefetch>{repo?.fullName || "..."}</Link>
         <span aria-hidden="true">/</span>
-        <Link href={`/dashboard/repos/${repoId}/releases`} className="hover:text-text-primary transition-colors">Releases</Link>
+        <Link href={`/dashboard/repos/${repoId}/releases`} className="hover:text-text-primary transition-colors" prefetch>Releases</Link>
         <span aria-hidden="true">/</span>
         <span className="text-text-primary">{release.tagName}</span>
       </div>

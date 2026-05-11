@@ -59,7 +59,7 @@ export const RepoCard = memo(function RepoCard({ repo, syncProgress, onSync, onD
         <div className="flex items-start justify-between">
           <div className="space-y-1 min-w-0">
             <CardTitle className="text-lg font-medium text-text-primary font-feature-settings-cv01-ss03">
-              <Link href={`/dashboard/repos/${repo.id}`} className="hover:text-brand-indigo transition-colors">
+              <Link href={`/dashboard/repos/${repo.id}`} prefetch className="hover:text-brand-indigo transition-colors">
                 {repo.fullName}
               </Link>
             </CardTitle>
@@ -136,13 +136,13 @@ export const RepoCard = memo(function RepoCard({ repo, syncProgress, onSync, onD
           <div className="flex gap-2">
             {repo.status === "ready" && !isSyncing && (
               <>
-                <Link href={`/dashboard/repos/${repo.id}/commits`}>
+                <Link href={`/dashboard/repos/${repo.id}/commits`} prefetch>
                   <Button variant="outline" size="sm" className="btn-linear-subtle">Commits</Button>
                 </Link>
-                <Link href={`/dashboard/repos/${repo.id}/releases`}>
+                <Link href={`/dashboard/repos/${repo.id}/releases`} prefetch>
                   <Button variant="outline" size="sm" className="btn-linear-subtle">Releases</Button>
                 </Link>
-                <Link href={`/dashboard/repos/${repo.id}/analytics`}>
+                <Link href={`/dashboard/repos/${repo.id}/analytics`} prefetch>
                   <Button variant="outline" size="sm" className="btn-linear-subtle">Analytics</Button>
                 </Link>
               </>

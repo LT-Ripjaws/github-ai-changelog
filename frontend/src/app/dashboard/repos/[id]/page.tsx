@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { getRepo, syncRepo } from "@/lib/api";
 import type { Repo } from "@/lib/types";
@@ -11,7 +11,15 @@ import { SyncStatusBadge } from "@/components/app/SyncStatusBadge";
 
 export default function RepoOverviewPage() {
   const params = useParams();
+  const router = useRouter();
   const repoId = params.id as string;
+
+  // Eagerly prefetch sibling routes while user reads the overview
+  useEffect(() => {
+    router.prefetch(`/dashboard/repos/${repoId}/commits`);
+    router.prefetch(`/dashboard/repos/${repoId}/releases`);
+    router.prefetch(`/dashboard/repos/${repoId}/analytics`);
+  }, [repoId, router]);
 
   const [repo, setRepo] = useState<Repo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,7 +92,7 @@ export default function RepoOverviewPage() {
     <div className="space-y-6">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-text-tertiary">
-        <Link href="/dashboard" className="hover:text-text-primary transition-colors">Repositories</Link>
+        <Link href="/dashboard" className="hover:text-text-primary transition-colors" prefetch>Repositories</Link>
         <span aria-hidden="true">/</span>
         <span className="text-text-primary">{repo.fullName}</span>
       </div>
@@ -165,7 +173,7 @@ export default function RepoOverviewPage() {
 
       {/* Actions */}
       <div className="flex flex-wrap gap-3">
-        <Link href={`/dashboard/repos/${repoId}/commits`}>
+        <Link href={`/dashboard/repos/${repoId}/commits`} prefetch>
           <Button variant="outline" disabled={repo.status !== "ready"} className="btn-linear-subtle">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 mr-2" aria-hidden="true">
               <circle cx="12" cy="12" r="3" /><line x1="3" y1="12" x2="9" y2="12" /><line x1="15" y1="12" x2="21" y2="12" />
@@ -173,7 +181,7 @@ export default function RepoOverviewPage() {
             View Commits
           </Button>
         </Link>
-        <Link href={`/dashboard/repos/${repoId}/releases`}>
+        <Link href={`/dashboard/repos/${repoId}/releases`} prefetch>
           <Button variant="outline" disabled={repo.status !== "ready"} className="btn-linear-subtle">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 mr-2" aria-hidden="true">
               <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" /><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.4" /><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.4" /><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19" />
@@ -181,7 +189,7 @@ export default function RepoOverviewPage() {
             View Releases
           </Button>
         </Link>
-        <Link href={`/dashboard/repos/${repoId}/analytics`}>
+        <Link href={`/dashboard/repos/${repoId}/analytics`} prefetch>
           <Button variant="outline" disabled={repo.status !== "ready"} className="btn-linear-subtle">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 mr-2" aria-hidden="true">
               <path d="M3 3v18h18" /><path d="m19 9-5 5-4-4-3 3" />
