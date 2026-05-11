@@ -7,11 +7,13 @@ import { UsersService } from '../users/users.service';
 @Injectable()
 export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
   constructor(config: ConfigService, private usersService: UsersService) {
+    // @ts-expect-error @types/passport-github2 is outdated — passport-oauth2 supports state: boolean
     super({
       clientID: config.get<string>('GITHUB_CLIENT_ID')!,
       clientSecret: config.get<string>('GITHUB_CLIENT_SECRET')!,
       callbackURL: config.get<string>('GITHUB_CALLBACK_URL')!,
       scope: ['user:email', 'repo'],
+      state: true,
     });
   }
 

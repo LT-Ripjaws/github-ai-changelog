@@ -6,6 +6,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { DataSource } from 'typeorm';
 import * as dotenv from 'dotenv';
 import helmet from 'helmet';
+import * as session from 'express-session';
 dotenv.config();
 
 /** Ensure pgvector extension, table, and index exist.
@@ -35,6 +36,18 @@ async function bootstrap() {
 
   // Security headers: CSP, HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy
   app.use(helmet());
+
+  // Session store for OAuth state parameter (CSRF protection)
+  app.use(session({
+    secret: process.env.JWT_SECRET ?? 'fallback-dev-secret',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+  }));
 
   // Run pgvector migration on startup
   const dataSource = app.get(DataSource);
