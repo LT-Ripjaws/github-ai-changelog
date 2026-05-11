@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { getMe } from "@/lib/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -17,28 +18,23 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const hash = window.location.hash;
-    console.log('[AuthCallback] hash:', hash);
 
-    if (hash.startsWith("#token=")) {
-      const token = hash.slice(7);
-      console.log('[AuthCallback] token received, length:', token.length);
-      localStorage.setItem("jwt_token", token);
-      window.history.replaceState(null, "", "/auth/callback");
-      router.replace("/dashboard");
-    } else if (hash.startsWith("#error=")) {
+    if (hash.startsWith("#error=")) {
       const errorKey = decodeURIComponent(hash.slice(7));
-      console.log('[AuthCallback] error:', errorKey);
       setError(ERROR_MESSAGES[errorKey] || `Authentication error: ${errorKey}`);
-    } else {
-      console.log('[AuthCallback] no hash, checking localStorage');
-      const existingToken = localStorage.getItem('jwt_token');
-      if (existingToken) {
-        console.log('[AuthCallback] existing token found, redirecting to dashboard');
-        router.replace("/dashboard");
-      } else {
-        setError("No authentication response received. Please try signing in again.");
-      }
+      return;
     }
+
+    // Cookie was set server-side by /auth/github/callback.
+    // Just verify we can reach /auth/me, then redirect.
+    getMe()
+      .then(() => {
+        window.history.replaceState(null, "", "/auth/callback");
+        router.replace("/dashboard");
+      })
+      .catch(() => {
+        setError("No authentication response received. Please try signing in again.");
+      });
   }, [router]);
 
   if (error) {

@@ -28,12 +28,17 @@ export class AuthController {
   @ApiResponse({ status: 302, description: 'Redirects to frontend with JWT token or error' })
   async githubCallback(@Req() req: any, @Res() res: any) {
     if (!req.user) {
-      // Auth failed: redirect to frontend with error
       return res.redirect(`${this.config.get('FRONTEND_URL')}/auth/callback#error=github_auth_failed`);
     }
     const token = await this.authService.login(req.user);
-    // Use hash fragment 
-    res.redirect(`${this.config.get('FRONTEND_URL')}/auth/callback#token=${token}`);
+    // Set httpOnly cookie for auth (replaces hash fragment redirect)
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+    res.redirect(`${this.config.get('FRONTEND_URL')}/dashboard`);
   }
 
   @Get('me')
@@ -52,9 +57,10 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Log out (client-side token removal)' })
+  @ApiOperation({ summary: 'Log out (clear auth cookie)' })
   @ApiResponse({ status: 200, description: 'Logged out successfully' })
-  logout() {
-    return { message: 'Logged out' };
+  logout(@Res() res: any) {
+    res.clearCookie('token');
+    return res.json({ message: 'Logged out' });
   }
 }

@@ -8,19 +8,14 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('jwt_token');
-    if (!token) { setLoading(false); return; }
     getMe()
       .then((u) => setUser(u))
-      .catch(() => {
-        localStorage.removeItem('jwt_token');
-        setUser(null);
-      })
+      .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
 
-  const logout = () => {
-    localStorage.removeItem('jwt_token');
+  const logout = async () => {
+    try { await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, { method: 'POST', credentials: 'include' }); } catch {}
     setUser(null);
     window.location.replace('/');
   };

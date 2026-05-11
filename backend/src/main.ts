@@ -7,6 +7,7 @@ import { DataSource } from 'typeorm';
 import * as dotenv from 'dotenv';
 import helmet from 'helmet';
 import * as session from 'express-session';
+import cookieParser = require('cookie-parser');
 dotenv.config();
 
 /** Ensure pgvector extension, table, and index exist.
@@ -36,6 +37,9 @@ async function bootstrap() {
 
   // Security headers: CSP, HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy
   app.use(helmet());
+
+  // Parse cookies for httpOnly JWT auth
+  app.use(cookieParser());
 
   // Session store for OAuth state parameter (CSRF protection)
   app.use(session({
