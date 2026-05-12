@@ -1,10 +1,8 @@
-"use client";
-import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
-import Link from "next/link";
-import { getCommit, getRepo } from "@/lib/api";
-import type { Commit, Repo } from "@/lib/types";
-import { Badge } from "@/components/ui/badge";
+import { headers } from 'next/headers';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { getCommitServer, getRepoServer } from '@/lib/server-api';
+import { Badge } from '@/components/ui/badge';
 
 const CATEGORY_COLORS: Record<string, string> = {
   breaking: "bg-red-500/15 text-red-400 border-red-500/30",
@@ -15,58 +13,29 @@ const CATEGORY_COLORS: Record<string, string> = {
   refactor: "bg-purple-500/15 text-purple-400 border-purple-500/30",
 };
 
-export default function CommitDetailPage() {
-  const params = useParams();
-  const repoId = params.id as string;
-  const sha = params.sha as string;
+function formatDate(d: string) {
+  return new Date(d).toLocaleDateString("en-US", {
+    weekday: "short", month: "short", day: "numeric", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
 
-  const [repo, setRepo] = useState<Repo | null>(null);
-  const [commit, setCommit] = useState<Commit | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export default async function CommitDetailPage({
+  params,
+}: {
+  params: { id: string; sha: string };
+}) {
+  const cookie = (await headers()).get('cookie') ?? null;
 
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    Promise.all([
-      getRepo(repoId),
-      getCommit(repoId, sha),
-    ])
-      .then(([repoData, commitData]) => {
-        setRepo(repoData);
-        setCommit(commitData);
-      })
-      .catch((err) => setError(err.response?.data?.message || "Commit not found"))
-      .finally(() => setLoading(false));
-  }, [repoId, sha]);
-
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString("en-US", {
-      weekday: "short", month: "short", day: "numeric", year: "numeric",
-      hour: "2-digit", minute: "2-digit",
-    });
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <div className="h-8 w-64 bg-muted rounded animate-pulse" />
-        <div className="h-48 bg-muted rounded-md animate-pulse" />
-        <div className="h-32 bg-muted rounded-md animate-pulse" />
-      </div>
-    );
-  }
-
-  if (error || !commit) {
-    return (
-      <div className="space-y-4">
-        <Link href={`/dashboard/repos/${repoId}/commits`} className="text-sm text-text-tertiary hover:text-text-primary">
-          &larr; Back to commits
-        </Link>
-        <div className="p-4 bg-destructive/10 rounded-md border border-destructive/20" role="alert">
-          <p className="text-destructive">{error}</p>
-        </div>
-      </div>
-    );
+  let repo: any;
+  let commit: any;
+  try {
+    [repo, commit] = await Promise.all([
+      getRepoServer(params.id, cookie),
+      getCommitServer(params.id, params.sha, cookie),
+    ]);
+  } catch {
+    notFound();
   }
 
   const commitMessage = commit.message.split("\n");
@@ -79,9 +48,9 @@ export default function CommitDetailPage() {
       <div className="flex items-center gap-2 text-sm text-text-tertiary">
         <Link href="/dashboard" className="hover:text-text-primary transition-colors" prefetch>Repositories</Link>
         <span aria-hidden="true">/</span>
-        <Link href={`/dashboard/repos/${repoId}`} className="hover:text-text-primary transition-colors" prefetch>{repo?.fullName || "..."}</Link>
+        <Link href={`/dashboard/repos/${params.id}`} className="hover:text-text-primary transition-colors" prefetch>{repo?.fullName || "..."}</Link>
         <span aria-hidden="true">/</span>
-        <Link href={`/dashboard/repos/${repoId}/commits`} className="hover:text-text-primary transition-colors" prefetch>Commits</Link>
+        <Link href={`/dashboard/repos/${params.id}/commits`} className="hover:text-text-primary transition-colors" prefetch>Commits</Link>
         <span aria-hidden="true">/</span>
         <code className="text-text-primary bg-surface-2 px-1.5 py-0.5 rounded font-mono text-xs">{commit.sha.slice(0, 7)}</code>
       </div>

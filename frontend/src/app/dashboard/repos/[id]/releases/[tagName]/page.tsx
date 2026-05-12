@@ -1,63 +1,33 @@
-"use client";
-import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
-import Link from "next/link";
-import { getRepo, getReleaseByTagName } from "@/lib/api";
-import type { Release, Repo } from "@/lib/types";
-import { Badge } from "@/components/ui/badge";
+import { headers } from 'next/headers';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { getReleaseByTagNameServer, getRepoServer } from '@/lib/server-api';
+import { Badge } from '@/components/ui/badge';
 
-export default function ReleaseDetailPage() {
-  const params = useParams();
-  const repoId = params.id as string;
-  const tagName = decodeURIComponent(params.tagName as string);
+function formatDate(d: string) {
+  return new Date(d).toLocaleDateString("en-US", {
+    weekday: "short", month: "short", day: "numeric", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
 
-  const [repo, setRepo] = useState<Repo | null>(null);
-  const [release, setRelease] = useState<Release | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export default async function ReleaseDetailPage({
+  params,
+}: {
+  params: { id: string; tagName: string };
+}) {
+  const cookie = (await headers()).get('cookie') ?? null;
+  const tagName = decodeURIComponent(params.tagName);
 
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    Promise.all([
-      getRepo(repoId),
-      getReleaseByTagName(repoId, tagName),
-    ])
-      .then(([repoData, releaseData]) => {
-        setRepo(repoData);
-        setRelease(releaseData);
-      })
-      .catch((err) => setError(err.response?.data?.message || "Release not found"))
-      .finally(() => setLoading(false));
-  }, [repoId, tagName]);
-
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString("en-US", {
-      weekday: "short", month: "short", day: "numeric", year: "numeric",
-      hour: "2-digit", minute: "2-digit",
-    });
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <div className="h-8 w-64 bg-muted rounded animate-pulse" />
-        <div className="h-48 bg-muted rounded-md animate-pulse" />
-        <div className="h-32 bg-muted rounded-md animate-pulse" />
-      </div>
-    );
-  }
-
-  if (error || !release) {
-    return (
-      <div className="space-y-4">
-        <Link href={`/dashboard/repos/${repoId}/releases`} className="text-sm text-text-tertiary hover:text-text-primary">
-          &larr; Back to releases
-        </Link>
-        <div className="p-4 bg-destructive/10 rounded-md border border-destructive/20" role="alert">
-          <p className="text-destructive">{error}</p>
-        </div>
-      </div>
-    );
+  let repo: any;
+  let release: any;
+  try {
+    [repo, release] = await Promise.all([
+      getRepoServer(params.id, cookie),
+      getReleaseByTagNameServer(params.id, tagName, cookie),
+    ]);
+  } catch {
+    notFound();
   }
 
   return (
@@ -66,9 +36,9 @@ export default function ReleaseDetailPage() {
       <div className="flex items-center gap-2 text-sm text-text-tertiary">
         <Link href="/dashboard" className="hover:text-text-primary transition-colors" prefetch>Repositories</Link>
         <span aria-hidden="true">/</span>
-        <Link href={`/dashboard/repos/${repoId}`} className="hover:text-text-primary transition-colors" prefetch>{repo?.fullName || "..."}</Link>
+        <Link href={`/dashboard/repos/${params.id}`} className="hover:text-text-primary transition-colors" prefetch>{repo?.fullName || "..."}</Link>
         <span aria-hidden="true">/</span>
-        <Link href={`/dashboard/repos/${repoId}/releases`} className="hover:text-text-primary transition-colors" prefetch>Releases</Link>
+        <Link href={`/dashboard/repos/${params.id}/releases`} className="hover:text-text-primary transition-colors" prefetch>Releases</Link>
         <span aria-hidden="true">/</span>
         <span className="text-text-primary">{release.tagName}</span>
       </div>
@@ -80,7 +50,7 @@ export default function ReleaseDetailPage() {
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl font-medium text-text-primary text-balance font-feature-settings-cv01-ss03" style={{ letterSpacing: "-0.288px" }}>{release.tagName}</h1>
               {release.releaseName && (
-                <span className="text-text-tertiary text-lg">— {release.releaseName}</span>
+                <span className="text-text-tertiary text-lg">&mdash; {release.releaseName}</span>
               )}
             </div>
             <div className="flex items-center gap-4 text-sm text-text-tertiary">
@@ -89,17 +59,17 @@ export default function ReleaseDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {release.breakingChanges.length > 0 && (
+            {release.breakingChanges?.length > 0 && (
               <Badge className="bg-red-500/15 text-red-400 border-red-500/30 tabular-nums">
                 {release.breakingChanges.length} breaking
               </Badge>
             )}
-            {release.features.length > 0 && (
+            {release.features?.length > 0 && (
               <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 tabular-nums">
                 {release.features.length} features
               </Badge>
             )}
-            {release.fixes.length > 0 && (
+            {release.fixes?.length > 0 && (
               <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/30 tabular-nums">
                 {release.fixes.length} fixes
               </Badge>
@@ -123,8 +93,7 @@ export default function ReleaseDetailPage() {
 
       {/* Categories */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Breaking Changes */}
-        {release.breakingChanges.length > 0 && (
+        {release.breakingChanges?.length > 0 && (
           <div className="card-linear p-5 space-y-3 animate-fade-in-up animate-delay-100">
             <h3 className="text-sm font-medium text-red-400 flex items-center gap-2 font-feature-settings-cv01-ss03">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
@@ -133,15 +102,14 @@ export default function ReleaseDetailPage() {
               Breaking Changes ({release.breakingChanges.length})
             </h3>
             <ul className="space-y-1.5">
-              {release.breakingChanges.map((item, i) => (
+              {release.breakingChanges.map((item: string, i: number) => (
                 <li key={i} className="text-sm pl-4 border-l-2 border-red-500/30 text-text-secondary">{item}</li>
               ))}
             </ul>
           </div>
         )}
 
-        {/* Features */}
-        {release.features.length > 0 && (
+        {release.features?.length > 0 && (
           <div className="card-linear p-5 space-y-3 animate-fade-in-up animate-delay-200">
             <h3 className="text-sm font-medium text-emerald-400 flex items-center gap-2 font-feature-settings-cv01-ss03">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
@@ -150,15 +118,14 @@ export default function ReleaseDetailPage() {
               Features ({release.features.length})
             </h3>
             <ul className="space-y-1.5">
-              {release.features.map((item, i) => (
+              {release.features.map((item: string, i: number) => (
                 <li key={i} className="text-sm pl-4 border-l-2 border-emerald-500/30 text-text-secondary">{item}</li>
               ))}
             </ul>
           </div>
         )}
 
-        {/* Fixes */}
-        {release.fixes.length > 0 && (
+        {release.fixes?.length > 0 && (
           <div className="card-linear p-5 space-y-3 animate-fade-in-up animate-delay-200">
             <h3 className="text-sm font-medium text-amber-400 flex items-center gap-2 font-feature-settings-cv01-ss03">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
@@ -167,15 +134,14 @@ export default function ReleaseDetailPage() {
               Fixes ({release.fixes.length})
             </h3>
             <ul className="space-y-1.5">
-              {release.fixes.map((item, i) => (
+              {release.fixes.map((item: string, i: number) => (
                 <li key={i} className="text-sm pl-4 border-l-2 border-amber-500/30 text-text-secondary">{item}</li>
               ))}
             </ul>
           </div>
         )}
 
-        {/* Chores */}
-        {release.chores.length > 0 && (
+        {release.chores?.length > 0 && (
           <div className="card-linear p-5 space-y-3 animate-fade-in-up animate-delay-300">
             <h3 className="text-sm font-medium text-slate-400 flex items-center gap-2 font-feature-settings-cv01-ss03">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
@@ -184,7 +150,7 @@ export default function ReleaseDetailPage() {
               Chores ({release.chores.length})
             </h3>
             <ul className="space-y-1.5">
-              {release.chores.map((item, i) => (
+              {release.chores.map((item: string, i: number) => (
                 <li key={i} className="text-sm pl-4 border-l-2 border-slate-500/30 text-text-secondary">{item}</li>
               ))}
             </ul>
@@ -202,10 +168,7 @@ export default function ReleaseDetailPage() {
 
       {/* Back link */}
       <div className="pt-2">
-        <Link
-          href={`/dashboard/repos/${repoId}/releases`}
-          className="text-sm text-text-tertiary hover:text-text-primary transition-colors"
-        >
+        <Link href={`/dashboard/repos/${params.id}/releases`} className="text-sm text-text-tertiary hover:text-text-primary transition-colors">
           &larr; Back to all releases
         </Link>
       </div>
