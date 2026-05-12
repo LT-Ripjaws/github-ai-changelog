@@ -6,7 +6,7 @@ import { HttpExceptionFilter, GenericExceptionFilter } from './common/filters/ht
 import { DataSource } from 'typeorm';
 import * as dotenv from 'dotenv';
 import helmet from 'helmet';
-import * as session from 'express-session';
+import session from 'express-session';
 import cookieParser = require('cookie-parser');
 dotenv.config();
 

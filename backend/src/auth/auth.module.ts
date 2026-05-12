@@ -12,6 +12,7 @@ import { UsersModule } from '../users/users.module';
   imports: [
     UsersModule,
     PassportModule,
+    ConfigModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
