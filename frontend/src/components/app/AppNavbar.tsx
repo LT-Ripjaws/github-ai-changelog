@@ -1,52 +1,80 @@
 "use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { useAuth } from '@/lib/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import type { User } from "@/lib/types";
 
-export function AppNavbar() {
-  const { user, logout, loading } = useAuth();
+interface AppNavbarProps {
+  initialUser: User;
+}
 
-  if (loading) {
-    return (
-      <header className="border-b border-border-subtle bg-surface-0">
-        <div className="flex items-center justify-between h-16 px-6">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-md bg-muted animate-pulse" />
-            <div className="h-6 w-32 bg-muted rounded animate-pulse" />
-          </div>
-          <div className="h-9 w-20 bg-muted rounded animate-pulse" />
-        </div>
-      </header>
-    );
-  }
+export function AppNavbar({ initialUser }: AppNavbarProps) {
+  const [user, setUser] = useState<User | null>(initialUser);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const logout = async () => {
+    setLoggingOut(true);
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // Redirect anyway; the server cookie may already be gone or unreachable.
+    } finally {
+      setUser(null);
+      window.location.replace("/");
+    }
+  };
 
   return (
-    <header className="border-b border-border-subtle bg-surface-0 shadow-md shadow-black/30">
-      <div className="flex items-center justify-between h-16 px-6">
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard" className="flex items-center gap-2">
+    <header className="sticky top-0 z-40 border-b border-border-subtle bg-surface-0/95 shadow-md shadow-black/30 backdrop-blur supports-[backdrop-filter]:bg-surface-0/80">
+      <div className="flex h-16 items-center justify-between px-6">
+        <div className="flex items-center gap-6">
+          <Link href="/dashboard" prefetch className="flex items-center gap-2">
             <img src="/logo.png" alt="RepoNarrate" className="h-8 w-8" />
-            <span className="font-medium text-lg text-text-primary font-feature-settings-cv01-ss03">RepoNarrate</span>
+            <span className="font-feature-settings-cv01-ss03 text-lg font-medium text-text-primary">
+              RepoNarrate
+            </span>
           </Link>
+
+          <nav aria-label="Global navigation" className="hidden items-center gap-1 sm:flex">
+            <Link
+              href="/dashboard"
+              prefetch
+              className="rounded-md px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-2 hover:text-text-primary"
+            >
+              Repositories
+            </Link>
+          </nav>
         </div>
 
-        <div className="flex items-center gap-4">
-          {user && (
-            <>
-              <div className="flex items-center gap-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={user.avatarUrl} alt={user.username} />
-                  <AvatarFallback className="bg-surface-2 text-text-primary">{user.username?.charAt(0)?.toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <span className="text-sm font-medium hidden sm:block text-text-secondary">{user.username}</span>
-              </div>
-              <Button variant="outline" size="sm" onClick={logout} className="btn-linear-ghost">
-                Logout
-              </Button>
-            </>
-          )}
-        </div>
+        {user ? (
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Avatar className="h-8 w-8">
+                {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={user.username} /> : null}
+                <AvatarFallback className="bg-surface-2 text-text-primary">
+                  {user.username?.charAt(0)?.toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <span className="hidden text-sm font-medium text-text-secondary sm:block">
+                {user.username}
+              </span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={logout}
+              disabled={loggingOut}
+              className="btn-linear-ghost"
+            >
+              {loggingOut ? "Logging out…" : "Logout"}
+            </Button>
+          </div>
+        ) : null}
       </div>
     </header>
   );

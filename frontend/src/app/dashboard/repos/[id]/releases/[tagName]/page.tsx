@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getReleaseByTagNameServer, getRepoServer } from '@/lib/server-api';
+import { getReleaseByTagNameServer } from '@/lib/server-api';
 import { Badge } from '@/components/ui/badge';
 
 function formatDate(d: string) {
@@ -19,30 +19,15 @@ export default async function ReleaseDetailPage({
   const cookie = (await headers()).get('cookie') ?? null;
   const tagName = decodeURIComponent(params.tagName);
 
-  let repo: any;
   let release: any;
   try {
-    [repo, release] = await Promise.all([
-      getRepoServer(params.id, cookie),
-      getReleaseByTagNameServer(params.id, tagName, cookie),
-    ]);
+    release = await getReleaseByTagNameServer(params.id, tagName, cookie);
   } catch {
     notFound();
   }
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-text-tertiary">
-        <Link href="/dashboard" className="hover:text-text-primary transition-colors" prefetch>Repositories</Link>
-        <span aria-hidden="true">/</span>
-        <Link href={`/dashboard/repos/${params.id}`} className="hover:text-text-primary transition-colors" prefetch>{repo?.fullName || "..."}</Link>
-        <span aria-hidden="true">/</span>
-        <Link href={`/dashboard/repos/${params.id}/releases`} className="hover:text-text-primary transition-colors" prefetch>Releases</Link>
-        <span aria-hidden="true">/</span>
-        <span className="text-text-primary">{release.tagName}</span>
-      </div>
-
       {/* Header */}
       <div className="card-linear p-6 space-y-4 animate-fade-in-up">
         <div className="flex items-start justify-between gap-4">

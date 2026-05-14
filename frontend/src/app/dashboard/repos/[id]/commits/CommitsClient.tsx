@@ -21,11 +21,10 @@ const CATEGORIES = ["breaking", "feature", "fix", "chore", "docs", "refactor"];
 
 interface CommitsClientProps {
   repoId: string;
-  repoName: string;
   initialData: { commits: Commit[]; meta: { page: number; totalPages: number; total: number } };
 }
 
-export default function CommitsClient({ repoId, repoName, initialData }: CommitsClientProps) {
+export default function CommitsClient({ repoId, initialData }: CommitsClientProps) {
   const [commits, setCommits] = useState<Commit[]>(initialData.commits);
   const [meta, setMeta] = useState(initialData.meta);
   const [loading, setLoading] = useState(false);

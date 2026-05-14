@@ -9,9 +9,17 @@ interface SyncButtonProps {
   repoId: string;
   initialRepo: Repo;
   onSyncComplete?: (updated: Repo) => void;
+  showHeader?: boolean;
+  showActions?: boolean;
 }
 
-export function SyncButton({ repoId, initialRepo, onSyncComplete }: SyncButtonProps) {
+export function SyncButton({
+  repoId,
+  initialRepo,
+  onSyncComplete,
+  showHeader = true,
+  showActions = true,
+}: SyncButtonProps) {
   const [repo, setRepo] = useState<Repo>(initialRepo);
   const [syncing, setSyncing] = useState(false);
 
@@ -49,18 +57,20 @@ export function SyncButton({ repoId, initialRepo, onSyncComplete }: SyncButtonPr
   return (
     <div className="space-y-4">
       {/* Header with sync button */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-2 min-w-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-medium text-text-primary text-balance font-feature-settings-cv01-ss03" style={{ letterSpacing: "-0.288px" }}>{repo.fullName}</h1>
-            <SyncStatusBadge status={repo.status} />
+      {showHeader ? (
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-2 min-w-0">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl font-medium text-text-primary text-balance font-feature-settings-cv01-ss03" style={{ letterSpacing: "-0.288px" }}>{repo.fullName}</h1>
+              <SyncStatusBadge status={repo.status} />
+            </div>
+            <p className="text-text-secondary">{repo.description || "No description"}</p>
           </div>
-          <p className="text-text-secondary">{repo.description || "No description"}</p>
+          <Button onClick={handleSync} disabled={isSyncing} className="btn-linear-primary">
+            {isSyncing ? "Syncing\u2026" : "Sync Now"}
+          </Button>
         </div>
-        <Button onClick={handleSync} disabled={isSyncing} className="btn-linear-primary">
-          {isSyncing ? "Syncing\u2026" : "Sync Now"}
-        </Button>
-      </div>
+      ) : null}
 
       {/* Sync progress */}
       {isSyncing && (
@@ -117,32 +127,34 @@ export function SyncButton({ repoId, initialRepo, onSyncComplete }: SyncButtonPr
       </div>
 
       {/* Actions */}
-      <div className="flex flex-wrap gap-3">
-        <a href={`/dashboard/repos/${repoId}/commits`} className="block">
-          <Button variant="outline" disabled={repo.status !== "ready"} className="btn-linear-subtle">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 mr-2" aria-hidden="true">
-              <circle cx="12" cy="12" r="3" /><line x1="3" y1="12" x2="9" y2="12" /><line x1="15" y1="12" x2="21" y2="12" />
-            </svg>
-            View Commits
-          </Button>
-        </a>
-        <a href={`/dashboard/repos/${repoId}/releases`} className="block">
-          <Button variant="outline" disabled={repo.status !== "ready"} className="btn-linear-subtle">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 mr-2" aria-hidden="true">
-              <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" /><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.4" /><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.4" /><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19" />
-            </svg>
-            View Releases
-          </Button>
-        </a>
-        <a href={`/dashboard/repos/${repoId}/analytics`} className="block">
-          <Button variant="outline" disabled={repo.status !== "ready"} className="btn-linear-subtle">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 mr-2" aria-hidden="true">
-              <path d="M3 3v18h18" /><path d="m19 9-5 5-4-4-3 3" />
-            </svg>
-            Analytics
-          </Button>
-        </a>
-      </div>
+      {showActions ? (
+        <div className="flex flex-wrap gap-3">
+          <a href={`/dashboard/repos/${repoId}/commits`} className="block">
+            <Button variant="outline" disabled={repo.status !== "ready"} className="btn-linear-subtle">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 mr-2" aria-hidden="true">
+                <circle cx="12" cy="12" r="3" /><line x1="3" y1="12" x2="9" y2="12" /><line x1="15" y1="12" x2="21" y2="12" />
+              </svg>
+              View Commits
+            </Button>
+          </a>
+          <a href={`/dashboard/repos/${repoId}/releases`} className="block">
+            <Button variant="outline" disabled={repo.status !== "ready"} className="btn-linear-subtle">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 mr-2" aria-hidden="true">
+                <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" /><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.4" /><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.4" /><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19" />
+              </svg>
+              View Releases
+            </Button>
+          </a>
+          <a href={`/dashboard/repos/${repoId}/analytics`} className="block">
+            <Button variant="outline" disabled={repo.status !== "ready"} className="btn-linear-subtle">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 mr-2" aria-hidden="true">
+                <path d="M3 3v18h18" /><path d="m19 9-5 5-4-4-3 3" />
+              </svg>
+              Analytics
+            </Button>
+          </a>
+        </div>
+      ) : null}
 
       {/* Meta info */}
       <div className="flex flex-wrap gap-4 text-sm text-text-tertiary">

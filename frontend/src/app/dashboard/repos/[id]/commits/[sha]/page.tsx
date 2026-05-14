@@ -1,7 +1,6 @@
 import { headers } from 'next/headers';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getCommitServer, getRepoServer } from '@/lib/server-api';
+import { getCommitServer } from '@/lib/server-api';
 import { Badge } from '@/components/ui/badge';
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -27,13 +26,9 @@ export default async function CommitDetailPage({
 }) {
   const cookie = (await headers()).get('cookie') ?? null;
 
-  let repo: any;
   let commit: any;
   try {
-    [repo, commit] = await Promise.all([
-      getRepoServer(params.id, cookie),
-      getCommitServer(params.id, params.sha, cookie),
-    ]);
+    commit = await getCommitServer(params.id, params.sha, cookie);
   } catch {
     notFound();
   }
@@ -44,17 +39,6 @@ export default async function CommitDetailPage({
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-text-tertiary">
-        <Link href="/dashboard" className="hover:text-text-primary transition-colors" prefetch>Repositories</Link>
-        <span aria-hidden="true">/</span>
-        <Link href={`/dashboard/repos/${params.id}`} className="hover:text-text-primary transition-colors" prefetch>{repo?.fullName || "..."}</Link>
-        <span aria-hidden="true">/</span>
-        <Link href={`/dashboard/repos/${params.id}/commits`} className="hover:text-text-primary transition-colors" prefetch>Commits</Link>
-        <span aria-hidden="true">/</span>
-        <code className="text-text-primary bg-surface-2 px-1.5 py-0.5 rounded font-mono text-xs">{commit.sha.slice(0, 7)}</code>
-      </div>
-
       {/* Header */}
       <div className="card-linear p-6 space-y-4 animate-fade-in-up">
         <div className="flex items-start justify-between gap-4">

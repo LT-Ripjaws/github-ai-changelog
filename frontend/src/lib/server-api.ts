@@ -3,6 +3,7 @@
  * The browser cookie is forwarded to the backend via Cookie header. */
 
 import { cache } from 'react';
+import type { User } from './types';
 
 const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:3001';
 
@@ -11,6 +12,12 @@ function headers(cookie: string | null) {
   if (cookie) h.Cookie = cookie;
   return h;
 }
+
+export const getMeServer = cache(async (cookie: string | null): Promise<User | null> => {
+  const res = await fetch(`${BACKEND_URL}/auth/me`, { headers: headers(cookie), cache: 'no-store' });
+  if (!res.ok) throw new Error(`Failed to fetch current user: ${res.status}`);
+  return res.json();
+});
 
 /** Cached per-request: if multiple server components need the same repo
  * in one render, the fetch runs only once. */

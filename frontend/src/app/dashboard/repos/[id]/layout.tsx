@@ -1,11 +1,13 @@
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { RepoWorkspaceHeader } from "@/components/repos/RepoWorkspaceHeader";
 import { getRepoServer } from "@/lib/server-api";
-import { SyncButton } from "@/components/repos/SyncButton";
 
-export default async function RepoOverviewPage({
+export default async function RepoWorkspaceLayout({
+  children,
   params,
 }: {
+  children: React.ReactNode;
   params: { id: string };
 }) {
   const cookie = (await headers()).get("cookie") ?? null;
@@ -17,5 +19,10 @@ export default async function RepoOverviewPage({
     notFound();
   }
 
-  return <SyncButton repoId={params.id} initialRepo={repo} showHeader={false} showActions={false} />;
+  return (
+    <div className="space-y-6">
+      <RepoWorkspaceHeader repo={repo} />
+      {children}
+    </div>
+  );
 }

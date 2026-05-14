@@ -10,7 +10,6 @@ import { EmptyReleases } from "@/components/ui/empty-state";
 
 interface ReleasesClientProps {
   repoId: string;
-  repoName: string;
   initialData: { releases: Release[]; meta: { page: number; totalPages: number; total: number } };
 }
 
