@@ -1,8 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
+
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { getReleases } from "@/lib/api";
-import type { Release, PaginatedResponse } from "@/lib/types";
+import type { Release } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SkeletonReleaseCard } from "@/components/ui/skeleton";
@@ -13,6 +14,50 @@ interface ReleasesClientProps {
   initialData: { releases: Release[]; meta: { page: number; totalPages: number; total: number } };
 }
 
+function formatDate(date: string) {
+  return new Date(date).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function ChangeSection({
+  title,
+  items,
+  tone,
+}: {
+  title: string;
+  items: string[];
+  tone: "red" | "emerald" | "amber" | "slate";
+}) {
+  if (items.length === 0) return null;
+
+  const toneClasses = {
+    red: "text-red-400 border-red-500/30",
+    emerald: "text-emerald-400 border-emerald-500/30",
+    amber: "text-amber-400 border-amber-500/30",
+    slate: "text-slate-400 border-slate-500/30",
+  }[tone];
+
+  const borderClass = toneClasses.split(" ")[1];
+
+  return (
+    <div className="space-y-2">
+      <h4 className={`text-sm font-medium font-feature-settings-cv01-ss03 ${toneClasses.split(" ")[0]}`}>
+        {title}
+      </h4>
+      <ul className="space-y-1">
+        {items.map((item, index) => (
+          <li key={index} className={`border-l-2 pl-4 text-sm text-text-secondary ${borderClass}`}>
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export default function ReleasesClient({ repoId, initialData }: ReleasesClientProps) {
   const [releases, setReleases] = useState<Release[]>(initialData.releases);
   const [meta, setMeta] = useState(initialData.meta);
@@ -21,89 +66,207 @@ export default function ReleasesClient({ repoId, initialData }: ReleasesClientPr
   const [page, setPage] = useState(1);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  const fetchReleases = (p: number) => {
+  const fetchReleases = useCallback(async (p: number) => {
     setLoading(true);
     setError(null);
-    getReleases(repoId, { page: p, limit: 20 })
-      .then((res) => { setReleases(res.data); setMeta(res.meta); })
-      .catch((err) => setError(err.response?.data?.message || "Failed to fetch releases"))
-      .finally(() => setLoading(false));
-  };
+    try {
+      const res = await getReleases(repoId, { page: p, limit: 20 });
+      setReleases(res.data);
+      setMeta(res.meta);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to fetch releases");
+    } finally {
+      setLoading(false);
+    }
+  }, [repoId]);
 
   useEffect(() => {
-    // Only fetch when page changes from user interaction.
-    // Initial page=1 data is provided by the server via initialData.
-    // repoId changes are handled by the server wrapper re-rendering.
-    if (page !== 1) fetchReleases(page);
-  }, [page]);
+    if (page === 1) {
+      setReleases(initialData.releases);
+      setMeta(initialData.meta);
+      return;
+    }
 
-  const formatDate = (d: string) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  const toggleExpand = (id: string) => setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+    void fetchReleases(page);
+  }, [fetchReleases, initialData.meta, initialData.releases, page]);
+
+  const toggleExpand = (id: string) => {
+    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   return (
     <div className="space-y-6">
-      {loading && (<div className="space-y-4">{[...Array(3)].map((_, i) => (<SkeletonReleaseCard key={i} />))}</div>)}
-      {error && (<div className="p-4 bg-destructive/10 rounded-md border border-destructive/20" role="alert"><p className="text-destructive">{error}</p></div>)}
+      {loading ? (
+        <div className="space-y-4">
+          {[...Array(3)].map((_, index) => (
+            <SkeletonReleaseCard key={index} />
+          ))}
+        </div>
+      ) : null}
 
-      {!loading && !error && (
+      {error ? (
+        <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4" role="alert">
+          <p className="text-destructive">{error}</p>
+        </div>
+      ) : null}
+
+      {!loading && !error ? (
         <>
-          {releases.length === 0 ? (<EmptyReleases />) : (
+          {releases.length === 0 ? (
+            <EmptyReleases />
+          ) : (
             <div className="space-y-4">
               {releases.map((release) => {
-                const isOpen = expanded[release.id];
+                const isOpen = expanded[release.id] ?? false;
+                const detailHref = `/dashboard/repos/${repoId}/releases/${encodeURIComponent(release.tagName)}`;
+                const panelId = `release-preview-${release.id}`;
+
                 return (
-                  <div key={release.id} className="card-linear overflow-hidden">
-                    <div className="p-5 cursor-pointer hover:bg-surface-2 transition-colors"
-                      onClick={() => toggleExpand(release.id)} role="button" aria-expanded={isOpen} tabIndex={0}
-                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleExpand(release.id); } }}>
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-3">
-                            <Link href={`/dashboard/repos/${repoId}/releases/${encodeURIComponent(release.tagName)}`} prefetch
-                              className="text-lg font-medium text-text-primary hover:text-brand-indigo transition-colors font-feature-settings-cv01-ss03"
-                              onClick={(e) => e.stopPropagation()}>{release.tagName}</Link>
-                            {release.releaseName && (<span className="text-text-tertiary">&mdash; {release.releaseName}</span>)}
+                  <article key={release.id} className="card-linear overflow-hidden">
+                    <header className="p-5">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0 space-y-2">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <Link
+                              href={detailHref}
+                              prefetch
+                              className="text-lg font-medium text-text-primary transition-colors hover:text-brand-indigo focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-indigo/60 font-feature-settings-cv01-ss03"
+                            >
+                              {release.tagName}
+                            </Link>
+                            {release.releaseName ? (
+                              <span className="text-sm text-text-tertiary">— {release.releaseName}</span>
+                            ) : null}
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-text-tertiary">
+                          <div className="flex flex-wrap items-center gap-4 text-sm text-text-tertiary">
                             <span>{formatDate(release.releasedAt)}</span>
                             <span className="tabular-nums">{release.commitsCount} commits</span>
                           </div>
+                          {release.aiSummary ? (
+                            <p className="line-clamp-2 max-w-4xl text-sm leading-6 text-text-secondary">
+                              {release.aiSummary}
+                            </p>
+                          ) : null}
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {release.breakingChanges?.length > 0 && (<Badge className="bg-red-500/15 text-red-400 border-red-500/30 tabular-nums">{release.breakingChanges.length} breaking</Badge>)}
-                          {release.features?.length > 0 && (<Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 tabular-nums">{release.features.length} features</Badge>)}
-                          {release.fixes?.length > 0 && (<Badge className="bg-amber-500/15 text-amber-400 border-amber-500/30 tabular-nums">{release.fixes.length} fixes</Badge>)}
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                            className={`h-4 w-4 text-text-tertiary transition-transform ${isOpen ? "rotate-180" : ""}`} aria-hidden="true">
+
+                        <div className="flex shrink-0 flex-wrap items-center gap-2">
+                          {release.breakingChanges?.length > 0 ? (
+                            <Badge className="border-red-500/30 bg-red-500/15 text-red-400 tabular-nums">
+                              {release.breakingChanges.length} breaking
+                            </Badge>
+                          ) : null}
+                          {release.features?.length > 0 ? (
+                            <Badge className="border-emerald-500/30 bg-emerald-500/15 text-emerald-400 tabular-nums">
+                              {release.features.length} features
+                            </Badge>
+                          ) : null}
+                          {release.fixes?.length > 0 ? (
+                            <Badge className="border-amber-500/30 bg-amber-500/15 text-amber-400 tabular-nums">
+                              {release.fixes.length} fixes
+                            </Badge>
+                          ) : null}
+                        </div>
+                      </div>
+                    </header>
+
+                    <div className="flex flex-col gap-3 border-t border-border-subtle p-4 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-sm text-text-tertiary">
+                        Use preview for a quick scan, or open the full release detail page.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button asChild variant="outline" size="sm" className="btn-linear-subtle">
+                          <Link href={detailHref} prefetch>
+                            Open detail
+                          </Link>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          aria-expanded={isOpen}
+                          aria-controls={panelId}
+                          onClick={() => toggleExpand(release.id)}
+                          className="btn-linear-subtle"
+                        >
+                          {isOpen ? "Hide preview" : "Preview changes"}
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className={`ml-2 h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                            aria-hidden="true"
+                          >
                             <path d="m6 9 6 6 6-6" />
                           </svg>
-                        </div>
+                        </Button>
                       </div>
                     </div>
-                    {isOpen && (
-                      <div className="border-t border-border-subtle p-5 space-y-4 bg-surface-1">
-                        {release.aiSummary && (<div className="space-y-2"><h4 className="text-sm font-medium text-text-tertiary uppercase tracking-wide font-feature-settings-cv01-ss03">AI Summary</h4><p className="text-sm leading-relaxed text-text-secondary">{release.aiSummary}</p></div>)}
-                        {release.breakingChanges?.length > 0 && (<div className="space-y-2"><h4 className="text-sm font-medium text-red-400 flex items-center gap-2 font-feature-settings-cv01-ss03"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>Breaking Changes</h4><ul className="space-y-1">{release.breakingChanges.map((item: string, i: number) => (<li key={i} className="text-sm pl-4 border-l-2 border-red-500/30 text-text-secondary">{item}</li>))}</ul></div>)}
-                        {release.features?.length > 0 && (<div className="space-y-2"><h4 className="text-sm font-medium text-emerald-400 font-feature-settings-cv01-ss03">Features</h4><ul className="space-y-1">{release.features.map((item: string, i: number) => (<li key={i} className="text-sm pl-4 border-l-2 border-emerald-500/30 text-text-secondary">{item}</li>))}</ul></div>)}
-                        {release.fixes?.length > 0 && (<div className="space-y-2"><h4 className="text-sm font-medium text-amber-400 font-feature-settings-cv01-ss03">Fixes</h4><ul className="space-y-1">{release.fixes.map((item: string, i: number) => (<li key={i} className="text-sm pl-4 border-l-2 border-amber-500/30 text-text-secondary">{item}</li>))}</ul></div>)}
-                        {release.chores?.length > 0 && (<div className="space-y-2"><h4 className="text-sm font-medium text-slate-400 font-feature-settings-cv01-ss03">Chores</h4><ul className="space-y-1">{release.chores.map((item: string, i: number) => (<li key={i} className="text-sm pl-4 border-l-2 border-slate-500/30 text-text-secondary">{item}</li>))}</ul></div>)}
-                        {!release.aiSummary && release.rawBody && (<div className="space-y-2"><h4 className="text-sm font-medium text-text-tertiary uppercase tracking-wide font-feature-settings-cv01-ss03">Raw Notes</h4><pre className="text-sm whitespace-pre-wrap font-sans bg-surface-2 p-4 rounded-md text-text-secondary">{release.rawBody}</pre></div>)}
+
+                    {isOpen ? (
+                      <div id={panelId} className="space-y-4 border-t border-border-subtle bg-surface-1 p-5">
+                        {release.aiSummary ? (
+                          <div className="space-y-2">
+                            <h4 className="text-sm font-medium uppercase tracking-wide text-text-tertiary font-feature-settings-cv01-ss03">
+                              AI Summary
+                            </h4>
+                            <p className="text-sm leading-relaxed text-text-secondary">{release.aiSummary}</p>
+                          </div>
+                        ) : null}
+
+                        <ChangeSection title="Breaking Changes" items={release.breakingChanges ?? []} tone="red" />
+                        <ChangeSection title="Features" items={release.features ?? []} tone="emerald" />
+                        <ChangeSection title="Fixes" items={release.fixes ?? []} tone="amber" />
+                        <ChangeSection title="Chores" items={release.chores ?? []} tone="slate" />
+
+                        {!release.aiSummary && release.rawBody ? (
+                          <div className="space-y-2">
+                            <h4 className="text-sm font-medium uppercase tracking-wide text-text-tertiary font-feature-settings-cv01-ss03">
+                              Raw Notes
+                            </h4>
+                            <pre className="whitespace-pre-wrap rounded-md bg-surface-2 p-4 font-sans text-sm text-text-secondary">
+                              {release.rawBody}
+                            </pre>
+                          </div>
+                        ) : null}
                       </div>
-                    )}
-                  </div>
+                    ) : null}
+                  </article>
                 );
               })}
             </div>
           )}
-          {meta.totalPages > 1 && (
+
+          {meta.totalPages > 1 ? (
             <div className="flex items-center justify-center gap-2 pt-4">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="btn-linear-subtle">Previous</Button>
-              <span className="text-sm text-text-tertiary tabular-nums">Page {meta.page} of {meta.totalPages}</span>
-              <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)} className="btn-linear-subtle">Next</Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+                className="btn-linear-subtle"
+              >
+                Previous
+              </Button>
+              <span className="text-sm text-text-tertiary tabular-nums">
+                Page {meta.page} of {meta.totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= meta.totalPages}
+                onClick={() => setPage((p) => p + 1)}
+                className="btn-linear-subtle"
+              >
+                Next
+              </Button>
             </div>
-          )}
+          ) : null}
         </>
-      )}
+      ) : null}
     </div>
   );
 }
