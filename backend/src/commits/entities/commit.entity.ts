@@ -2,7 +2,8 @@ import {
   Entity, PrimaryGeneratedColumn, Column,
   CreateDateColumn, ManyToOne, JoinColumn, Index
 } from 'typeorm';
-import { RepoEntity } from '../../repos/entities/repo.entity';
+import type { Relation } from 'typeorm';
+import type { RepoEntity } from '../../repos/entities/repo.entity';
 
 @Entity('commits')
 @Index('idx_commits_repo_committed_at', ['repoId', 'committedAt'])
@@ -13,10 +14,10 @@ export class CommitEntity {
   @Column({ name: 'repo_id' }) 
   repoId: string;
 
-  @ManyToOne(() => RepoEntity, { 
+  @ManyToOne('RepoEntity', { 
     onDelete: 'CASCADE' })
   @JoinColumn({ name: 'repo_id' }) 
-  repo: RepoEntity;
+  repo: Relation<RepoEntity>;
 
   @Column({ unique: true }) 
   sha: string;

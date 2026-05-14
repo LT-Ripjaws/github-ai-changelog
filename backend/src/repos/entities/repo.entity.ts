@@ -3,7 +3,8 @@ import {
   CreateDateColumn, UpdateDateColumn,
   ManyToOne, OneToMany, JoinColumn, Index
 } from 'typeorm';
-import { UserEntity } from '../../users/entities/user.entity';
+import type { Relation } from 'typeorm';
+import type { UserEntity } from '../../users/entities/user.entity';
 
 @Entity('repos')
 @Index('idx_repos_user_created_at', ['userId', 'createdAt'])
@@ -15,11 +16,11 @@ export class RepoEntity {
   userId: string;
 
   @ManyToOne(
-    () => UserEntity, 
-    (u) => u.repos, 
+    'UserEntity',
+    'repos',
     { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' }) 
-  user: UserEntity;
+  user: Relation<UserEntity>;
 
   @Column({ name: 'github_repo_id' }) 
   githubRepoId: string;
@@ -66,6 +67,6 @@ export class RepoEntity {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @OneToMany('CommitEntity', 'repo') commits: any[];
-  @OneToMany('ReleaseEntity', 'repo') releases: any[];
+  @OneToMany('CommitEntity', 'repo') commits: Relation<unknown[]>;
+  @OneToMany('ReleaseEntity', 'repo') releases: Relation<unknown[]>;
 }

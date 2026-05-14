@@ -2,7 +2,8 @@ import {
   Entity, PrimaryGeneratedColumn, Column,
   CreateDateColumn, UpdateDateColumn, OneToMany
 } from 'typeorm';
-import { RepoEntity } from '../../repos/entities/repo.entity';
+import type { Relation } from 'typeorm';
+import type { RepoEntity } from '../../repos/entities/repo.entity';
 
 @Entity('users')
 export class UserEntity {
@@ -43,7 +44,7 @@ export class UserEntity {
     name: 'updated_at' }) 
   updatedAt: Date;
 
-  @OneToMany(() => RepoEntity, (r) => r.user) 
-  repos: RepoEntity[];
+  @OneToMany('RepoEntity', 'user') 
+  repos: Relation<RepoEntity[]>;
 
 }

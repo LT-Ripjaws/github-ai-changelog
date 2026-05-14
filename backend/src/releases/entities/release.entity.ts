@@ -2,7 +2,8 @@ import {
   Entity, PrimaryGeneratedColumn, Column,
   CreateDateColumn, ManyToOne, JoinColumn, Index
 } from 'typeorm';
-import { RepoEntity } from '../../repos/entities/repo.entity';
+import type { Relation } from 'typeorm';
+import type { RepoEntity } from '../../repos/entities/repo.entity';
 
 @Entity('releases')
 @Index('idx_releases_repo_released_at', ['repoId', 'releasedAt'])
@@ -13,9 +14,9 @@ export class ReleaseEntity {
   @Column({ name: 'repo_id' }) 
   repoId: string;
 
-  @ManyToOne(() => RepoEntity, { onDelete: 'CASCADE' })
+  @ManyToOne('RepoEntity', { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'repo_id' }) 
-  repo: RepoEntity;
+  repo: Relation<RepoEntity>;
 
   @Column({ name: 'tag_name' }) 
   tagName: string;

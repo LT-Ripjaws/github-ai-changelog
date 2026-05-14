@@ -159,7 +159,13 @@ export class ReposService {
     status: string,
     errorMessage?: string,
   ): Promise<void> {
-    const updateData: Partial<RepoEntity> = { status };
+    const updateData: {
+      status: string;
+      errorMessage?: string;
+      totalCommitsSynced?: number;
+      totalCommitsToSync?: number;
+      lastSyncedAt?: Date;
+    } = { status };
     if (errorMessage) {
       updateData.errorMessage = errorMessage;
     }
