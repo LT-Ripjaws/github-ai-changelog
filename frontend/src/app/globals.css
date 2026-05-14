@@ -50,6 +50,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "liga", "calt";
+    text-rendering: optimizeLegibility;
   }
 }
 
@@ -91,7 +93,7 @@
 }
 
 .tabular-nums { font-variant-numeric: tabular-nums; }
-.font-feature-settings-cv01-ss03 { font-feature-settings: "cv01", "ss03"; }
+.font-feature-settings-cv01-ss03 { font-feature-settings: "liga", "calt"; }
 
 /* === Buttons === */
 .btn-linear-ghost {

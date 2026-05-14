@@ -69,8 +69,28 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
   };
 
   const handleSync = async (id: string) => {
-    await syncRepo(id);
-    pollRepoUntilReady(id);
+    const repo = repos.find((item) => item.id === id);
+
+    setError(null);
+    setRepos((prev) => prev.map((item) => (
+      item.id === id ? { ...item, status: "syncing", errorMessage: null } : item
+    )));
+    setSyncingRepos((prev) => ({
+      ...prev,
+      [id]: {
+        synced: repo?.totalCommitsSynced ?? 0,
+        total: repo?.totalCommitsToSync ?? 0,
+      },
+    }));
+
+    try {
+      await syncRepo(id);
+      pollRepoUntilReady(id);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to queue repository sync");
+      setSyncingRepos((prev) => { const next = { ...prev }; delete next[id]; return next; });
+      throw err;
+    }
   };
 
   const handleDelete = async (id: string) => {
