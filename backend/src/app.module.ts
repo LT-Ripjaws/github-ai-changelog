@@ -25,7 +25,7 @@ import { AiModule } from './ai/ai.module';
         password: config.get('DB_PASSWORD'),
         database: config.get('DB_NAME'),
         autoLoadEntities: true,
-        synchronize: config.get('NODE_ENV') !== 'production',
+        synchronize: false,
         dropSchema: false,
       }),
     }),
@@ -35,6 +35,7 @@ import { AiModule } from './ai/ai.module';
         redis: {
           host: config.get('REDIS_HOST'),
           port: +config.get('REDIS_PORT'),
+          password: config.get<string>('REDIS_PASSWORD', ''),
         },
       }),
     }),

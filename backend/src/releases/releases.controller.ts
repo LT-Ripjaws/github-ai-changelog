@@ -13,6 +13,10 @@ import { ReleasesService } from './releases.service';
 import { ReposService } from '../repos/repos.service';
 import { PaginationDto } from '../common/dto/pagination.dto';
 
+interface AuthenticatedUser {
+  id: string;
+}
+
 @ApiTags('releases')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -30,7 +34,7 @@ export class ReleasesController {
   async findAll(
     @Param('repoId') repoId: string,
     @Query() query: PaginationDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     await this.reposService.findOne(repoId, user.id);
     return this.releasesService.findAll(repoId, query.page, query.limit);
@@ -45,7 +49,7 @@ export class ReleasesController {
   async findByTagName(
     @Param('repoId') repoId: string,
     @Param('tagName') tagName: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     await this.reposService.findOne(repoId, user.id);
     return this.releasesService.findByTagName(repoId, tagName);
@@ -60,7 +64,7 @@ export class ReleasesController {
   async findOne(
     @Param('repoId') repoId: string,
     @Param('id') id: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     await this.reposService.findOne(repoId, user.id);
     return this.releasesService.findOne(repoId, id);

@@ -1,8 +1,7 @@
-import { forwardRef, Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JobsService } from './jobs.service';
+import { forwardRef, Module } from '@nestjs/common';
 import { JobsProcessor } from './jobs.processor';
+import { JobsService } from './jobs.service';
 import { ReposModule } from '../repos/repos.module';
 
 @Module({
@@ -15,8 +14,6 @@ import { ReposModule } from '../repos/repos.module';
       },
     }),
     forwardRef(() => ReposModule),
-    
-  
   ],
   providers: [JobsService, JobsProcessor],
   exports: [JobsService],

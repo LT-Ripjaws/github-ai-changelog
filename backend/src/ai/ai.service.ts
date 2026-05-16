@@ -11,6 +11,31 @@ import {
 
 const VALID_CATEGORIES = ['breaking', 'feature', 'fix', 'chore', 'docs', 'refactor'];
 
+interface ProviderError {
+  status?: number;
+  message: string;
+}
+
+function getProviderError(error: unknown): ProviderError {
+  if (error instanceof Error) {
+    const maybeStatus = (error as Error & { status?: unknown }).status;
+    return {
+      status: typeof maybeStatus === 'number' ? maybeStatus : undefined,
+      message: error.message,
+    };
+  }
+
+  if (typeof error === 'object' && error !== null) {
+    const maybeError = error as { status?: unknown; message?: unknown };
+    return {
+      status: typeof maybeError.status === 'number' ? maybeError.status : undefined,
+      message: typeof maybeError.message === 'string' ? maybeError.message : 'Unknown provider error',
+    };
+  }
+
+  return { message: String(error) };
+}
+
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
@@ -20,24 +45,29 @@ export class AiService {
   private kiloModel: string;
 
   // Gemini for embeddings only
-  private embeddingModel: any;
+  private embeddingModel: ReturnType<GoogleGenerativeAI['getGenerativeModel']>;
 
   // Per-provider rate limiters
   private lastKiloCall = 0;
   private lastGeminiCall = 0;
-  private readonly kiloMinInterval = 1500;   // ~35 RPM 
-  private readonly geminiMinInterval = 800; // ~75 RPM 
+  private readonly kiloMinInterval = 1500; // ~35 RPM
+  private readonly geminiMinInterval = 800; // ~75 RPM
 
   constructor(private config: ConfigService) {
+    const kiloKey = config.get<string>('KILOCODE_API_KEY');
+    if (!kiloKey) throw new Error('KILOCODE_API_KEY is required');
+    const geminiKey = config.get<string>('GEMINI_API_KEY');
+    if (!geminiKey) throw new Error('GEMINI_API_KEY is required');
+
     // Kilo Code gateway for free models, generous rate limits
     this.kilo = new OpenAI({
       baseURL: 'https://api.kilo.ai/api/gateway',
-      apiKey: config.get<string>('KILOCODE_API_KEY') ?? '',
+      apiKey: kiloKey,
     });
     this.kiloModel = config.get<string>('KILOCODE_MODEL') ?? 'kilo-auto/free';
 
     // Gemini for embeddings only
-    const genAI = new GoogleGenerativeAI(config.get<string>('GEMINI_API_KEY') ?? '');
+    const genAI = new GoogleGenerativeAI(geminiKey);
     this.embeddingModel = genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
   }
 
@@ -45,7 +75,6 @@ export class AiService {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  // Throttle for Kilo Code text gen calls to avoid hitting rate limits
   private async throttleKilo() {
     const elapsed = Date.now() - this.lastKiloCall;
     if (elapsed < this.kiloMinInterval) {
@@ -54,7 +83,6 @@ export class AiService {
     this.lastKiloCall = Date.now();
   }
 
-  // Throttle for Gemini embedding calls 
   private async throttleGemini() {
     const elapsed = Date.now() - this.lastGeminiCall;
     if (elapsed < this.geminiMinInterval) {
@@ -63,17 +91,15 @@ export class AiService {
     this.lastGeminiCall = Date.now();
   }
 
-  // Extract retry delay from 429 error 
-  private getRetryDelay(err: any): number {
-    const match = err?.message?.match(/retry in (\d+\.?\d*)s/i);
-    if (match) return Math.ceil(parseFloat(match[1]) * 1000);
-    return 15000;
+  private getRetryDelay(error: unknown): number {
+    const message = getProviderError(error).message;
+    const match = message.match(/retry in (\d+\.?\d*)s/i);
+    return match ? Math.ceil(parseFloat(match[1]) * 1000) : 15000;
   }
 
-  // -- Text generation via Kilo Code --
-
-  private async generateText(prompt: string, maxRetries = 3): Promise<string> {
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+  private async generateText(prompt: string, maxAttempts = 4): Promise<string> {
+    // maxAttempts = initial try + retries. Default 4 = 1 initial + 3 retries.
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         await this.throttleKilo();
         const result = await this.kilo.chat.completions.create({
@@ -82,11 +108,14 @@ export class AiService {
           max_tokens: 500,
         });
         return (result.choices[0]?.message?.content ?? '').trim();
-      } catch (err: any) {
-        const isRateLimit = err.status === 429 || err.status === 503;
-        if (isRateLimit && attempt < maxRetries) {
+      } catch (err: unknown) {
+        const providerError = getProviderError(err);
+        const isRateLimit = providerError.status === 429 || providerError.status === 503;
+        if (isRateLimit && attempt < maxAttempts - 1) {
           const delay = this.getRetryDelay(err) * (attempt + 1);
-          this.logger.warn(`Kilo rate limited (${err.status}), waiting ${delay / 1000}s (attempt ${attempt + 1}/${maxRetries})...`);
+          this.logger.warn(
+            `Kilo rate limited (${providerError.status}), waiting ${delay / 1000}s (attempt ${attempt + 1}/${maxAttempts})...`,
+          );
           await this.sleep(delay);
         } else {
           throw err;
@@ -96,21 +125,20 @@ export class AiService {
     return '';
   }
 
-  // -- Embeddings via Gemini --
-
   async generateEmbedding(text: string): Promise<number[]> {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         await this.throttleGemini();
         const result = await this.embeddingModel.embedContent(text.slice(0, 2000));
         return result.embedding.values;
-      } catch (err: any) {
-        if (err.status === 429 && attempt < 2) {
+      } catch (err: unknown) {
+        const providerError = getProviderError(err);
+        if (providerError.status === 429 && attempt < 2) {
           const delay = this.getRetryDelay(err) * (attempt + 1);
           this.logger.warn(`Gemini embedding rate limited, waiting ${delay / 1000}s...`);
           await this.sleep(delay);
         } else {
-          this.logger.error('Embedding failed:', err.message);
+          this.logger.error('Embedding failed:', providerError.message);
           return [];
         }
       }
@@ -118,14 +146,12 @@ export class AiService {
     return [];
   }
 
-  //  Public API 
-
   async generateDiffSummary(diff: string): Promise<string> {
     try {
       const prompt = DIFF_SUMMARY_PROMPT.replace('{diff}', diff.slice(0, 3000));
       return await this.generateText(prompt);
-    } catch (err: any) {
-      this.logger.error('Diff summary failed:', err.message);
+    } catch (err: unknown) {
+      this.logger.error('Diff summary failed:', getProviderError(err).message);
       return '';
     }
   }
@@ -137,8 +163,8 @@ export class AiService {
         .replace('{diffSummary}', diffSummary);
       const result = (await this.generateText(prompt)).toLowerCase();
       return VALID_CATEGORIES.includes(result) ? result : 'chore';
-    } catch (err: any) {
-      this.logger.error('Categorization failed:', err.message);
+    } catch (err: unknown) {
+      this.logger.error('Categorization failed:', getProviderError(err).message);
       return 'chore';
     }
   }
@@ -150,15 +176,15 @@ export class AiService {
         .replace('{filesChanged}', String(filesChanged))
         .replace('{diffSummary}', diffSummary || message);
       return await this.generateText(prompt);
-    } catch (err: any) {
-      this.logger.error('Changelog generation failed:', err.message);
+    } catch (err: unknown) {
+      this.logger.error('Changelog generation failed:', getProviderError(err).message);
       return message;
     }
   }
 
   async generateReleaseSummary(
     tagName: string,
-    commits: { category: string; aiChangelog: string; message: string }[]
+    commits: { category: string; aiChangelog: string; message: string }[],
   ): Promise<string> {
     try {
       const breaking = commits.filter(c => c.category === 'breaking').map(c => c.aiChangelog || c.message).join(', ') || 'none';
@@ -175,8 +201,8 @@ export class AiService {
         .replace('{chores}', chores.slice(0, 300));
 
       return await this.generateText(prompt);
-    } catch (err: any) {
-      this.logger.error('Release summary failed:', err.message);
+    } catch (err: unknown) {
+      this.logger.error('Release summary failed:', getProviderError(err).message);
       return `Release ${tagName} contains ${commits.length} commits.`;
     }
   }

@@ -1,13 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
-import { RepoEntity } from './entities/repo.entity';
+import { Repository, DataSource, In } from 'typeorm';
+import { RepoEntity, RepoStatus } from './entities/repo.entity';
 import { CommitEntity } from '../commits/entities/commit.entity';
 import { ReleaseEntity } from '../releases/entities/release.entity';
 import { ReleaseCommitEntity } from '../releases/entities/release-commit.entity';
-import { GithubService } from './github.service';
+import { GitHubReleaseResponse, GithubService } from './github.service';
 import { AiService } from '../ai/ai.service';
 import { UsersService } from '../users/users.service';
+import { getErrorMessage } from '../common/errors';
 
 @Injectable()
 export class IngestionService {
@@ -56,7 +57,7 @@ export class IngestionService {
       }
 
       // Skip if already in DB
-      const existing = await this.commitsRepo.findOne({ where: { sha } });
+      const existing = await this.commitsRepo.findOne({ where: { repoId: repo.id, sha } });
       if (existing) {
         processedShas.set(sha, existing.id);
         continue;
@@ -71,13 +72,13 @@ export class IngestionService {
         deletions = detail.stats?.deletions ?? 0;
         diffText = (detail.files ?? [])
           .slice(0, 8)
-          .map((f: any) => `--- ${f.filename}\n${f.patch ?? ''}`)
+          .map((file) => `--- ${file.filename}\n${file.patch ?? ''}`)
           .join('\n\n')
           .slice(0, 3500);
 
         await this.sleep(1500); // rate limit buffer between commit detail fetches
-      } catch (err: any) {
-        this.logger.warn(`Could not fetch diff for ${sha}: ${err.message}`);
+      } catch (err: unknown) {
+        this.logger.warn(`Could not fetch diff for ${sha}: ${getErrorMessage(err)}`);
       }
 
       // AI processing (all wrapped in try/catch inside aiService already so)
@@ -112,8 +113,8 @@ export class IngestionService {
           isMergeCommit: (rawCommit.parents?.length ?? 0) > 1,
           committedAt: new Date(rawCommit.commit.committer?.date ?? rawCommit.commit.author?.date),
         });
-      } catch (err: any) {
-        if (err.message?.includes('violates foreign key constraint')) {
+      } catch (err: unknown) {
+        if (getErrorMessage(err).includes('violates foreign key constraint')) {
           this.logger.warn(`Repo ${fullName} was deleted during sync (FK constraint), stopping.`);
           return;
         }
@@ -139,12 +140,12 @@ export class IngestionService {
 
     // === STEP 2: Fetch + process releases ===
     this.logger.log(`Fetching releases for ${fullName}`);
-    let releases: any[] = [];
+    let releases: GitHubReleaseResponse[] = [];
 
     try {
       releases = await this.githubService.getReleases(owner, repoName, token);
-    } catch (err: any) {
-      this.logger.warn(`Could not fetch releases: ${err.message}`);
+    } catch (err: unknown) {
+      this.logger.warn(`Could not fetch releases: ${getErrorMessage(err)}`);
     }
 
     for (let i = 0; i < releases.length; i++) {
@@ -164,7 +165,7 @@ export class IngestionService {
           const comparison = await this.githubService.compareCommits(
             owner, repoName, prevTag, ghRelease.tag_name, token
           );
-          const shas: string[] = (comparison.commits ?? []).map((c: any) => c.sha);
+          const shas = (comparison.commits ?? []).map((commit) => commit.sha);
 
           for (const sha of shas) {
             const commitId = processedShas.get(sha);
@@ -172,14 +173,14 @@ export class IngestionService {
           }
 
           await this.sleep(1500); // rate limit buffer between release comparisons
-        } catch (err: any) {
-          this.logger.warn(`Could not compare commits for ${ghRelease.tag_name}: ${err.message}`);
+        } catch (err: unknown) {
+          this.logger.warn(`Could not compare commits for ${ghRelease.tag_name}: ${getErrorMessage(err)}`);
         }
       }
 
       // Fetch commit entities for AI summary
       const releaseCommits = releaseCommitIds.length
-        ? await this.commitsRepo.findByIds(releaseCommitIds)
+        ? await this.commitsRepo.findBy({ id: In(releaseCommitIds) })
         : [];
 
       const aiSummary = await this.aiService.generateReleaseSummary(
@@ -187,24 +188,34 @@ export class IngestionService {
         releaseCommits.map(c => ({ category: c.category, aiChangelog: c.aiChangelog, message: c.message }))
       );
 
-      const release = await this.releasesRepo.save({
-        repoId: repo.id,
-        tagName: ghRelease.tag_name,
-        releaseName: ghRelease.name,
-        rawBody: ghRelease.body,
-        aiSummary,
-        breakingChanges: releaseCommits.filter(c => c.category === 'breaking').map(c => c.aiChangelog || c.message),
-        features: releaseCommits.filter(c => c.category === 'feature').map(c => c.aiChangelog || c.message),
-        fixes: releaseCommits.filter(c => c.category === 'fix').map(c => c.aiChangelog || c.message),
-        chores: releaseCommits.filter(c => c.category === 'chore').map(c => c.message),
-        commitsCount: releaseCommits.length,
-        releasedAt: new Date(ghRelease.published_at),
-      });
+      await this.releasesRepo.manager.transaction(async (txn) => {
+        const result = await txn.query(`
+          INSERT INTO releases (repo_id, tag_name, release_name, raw_body, ai_summary, breaking_changes, features, fixes, chores, commits_count, released_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          RETURNING id
+        `, [
+          repo.id,
+          ghRelease.tag_name,
+          ghRelease.name ?? null,
+          ghRelease.body ?? null,
+          aiSummary,
+          JSON.stringify(releaseCommits.filter(c => c.category === 'breaking').map(c => c.aiChangelog || c.message)),
+          JSON.stringify(releaseCommits.filter(c => c.category === 'feature').map(c => c.aiChangelog || c.message)),
+          JSON.stringify(releaseCommits.filter(c => c.category === 'fix').map(c => c.aiChangelog || c.message)),
+          JSON.stringify(releaseCommits.filter(c => c.category === 'chore').map(c => c.message)),
+          releaseCommits.length,
+          new Date(ghRelease.published_at),
+        ]);
+        const id = result[0].id;
 
-      // Link commits to release
-      for (const commitId of releaseCommitIds) {
-        await this.releaseCommitsRepo.save({ releaseId: release.id, commitId });
-      }
+        // Link commits to release inside the same transaction
+        for (const commitId of releaseCommitIds) {
+          await txn.query(
+            `INSERT INTO release_commits (release_id, commit_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+            [id, commitId]
+          );
+        }
+      });
 
       await this.sleep(1500); // rate limit buffer between release processing
     }
@@ -212,7 +223,7 @@ export class IngestionService {
     // === STEP 3: Mark done ===
     const actualCommitCount = await this.commitsRepo.count({ where: { repoId: repo.id } });
     await this.reposRepo.update(repo.id, {
-      status: 'ready',
+      status: RepoStatus.Ready,
       totalCommitsSynced: actualCommitCount,
       lastSyncedAt: new Date(),
     });

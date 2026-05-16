@@ -1,6 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
+interface CategoryCountRow {
+  category: string | null;
+  count: number;
+}
+
+interface TotalCountRow {
+  total: number;
+}
+
+interface MonthCountRow {
+  month: string;
+  count: number;
+}
+
 @Injectable()
 export class AnalyticsService {
   constructor(private dataSource: DataSource) {}
@@ -8,7 +22,7 @@ export class AnalyticsService {
   async getAnalytics(repoId: string, from?: string, to?: string) {
     // Build date filter clause
     const conditions: string[] = ['repo_id = $1'];
-    const params: any[] = [repoId];
+    const params: string[] = [repoId];
     let paramIdx = 2;
 
     if (from) {
@@ -25,7 +39,7 @@ export class AnalyticsService {
     const whereClause = conditions.join(' AND ');
 
     // Commits by category
-    const byCategory = await this.dataSource.query(
+    const byCategory = await this.dataSource.query<CategoryCountRow[]>(
       `SELECT category, COUNT(*)::int AS count
        FROM commits
        WHERE ${whereClause}
@@ -49,14 +63,14 @@ export class AnalyticsService {
     }
 
     // Total commits
-    const totalResult = await this.dataSource.query(
+    const totalResult = await this.dataSource.query<TotalCountRow[]>(
       `SELECT COUNT(*)::int AS total FROM commits WHERE ${whereClause}`,
       params,
     );
     const totalCommits = totalResult[0]?.total ?? 0;
 
     // Commits by month
-    const byMonth = await this.dataSource.query(
+    const byMonth = await this.dataSource.query<MonthCountRow[]>(
       `SELECT to_char(committed_at, 'YYYY-MM') AS month, COUNT(*)::int AS count
        FROM commits
        WHERE ${whereClause}
@@ -65,7 +79,7 @@ export class AnalyticsService {
       params,
     );
 
-    const commitsByMonth = byMonth.map((row: any) => ({
+    const commitsByMonth = byMonth.map((row) => ({
       month: row.month,
       count: row.count,
     }));

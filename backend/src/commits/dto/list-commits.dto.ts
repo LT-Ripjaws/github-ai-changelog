@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsIn } from 'class-validator';
+import { IsISO8601, IsIn, IsOptional, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 
@@ -13,11 +13,11 @@ export class ListCommitsDto extends PaginationDto {
 
   @ApiPropertyOptional({ description: 'Start date (ISO format)' })
   @IsOptional()
-  @IsString()
+  @IsISO8601()
   from?: string;
 
   @ApiPropertyOptional({ description: 'End date (ISO format)' })
   @IsOptional()
-  @IsString()
+  @IsISO8601()
   to?: string;
 }

@@ -8,18 +8,12 @@ export class JobsService {
 
   constructor(@InjectQueue('repo-sync') private syncQueue: Queue) {}
 
-
-   // Add a repo sync job to the queue
-  
-  async addSyncJob(
-    repoId: string,
-    userId: string,
-    accessToken: string,
-  ): Promise<void> {
+  async addSyncJob(repoId: string): Promise<void> {
     await this.syncQueue.add(
       'sync',
-      { repoId, userId, accessToken },
+      { repoId },
       {
+        jobId: `sync:${repoId}`,
         attempts: 3,
         backoff: { type: 'exponential', delay: 1000 },
         removeOnComplete: true,

@@ -95,8 +95,7 @@ export class ReposController {
     @Param('id') id: string,
     @CurrentUser() user: { id: string },
   ) {
-    const accessToken = await this.usersService.getAccessToken(user.id);
-    return this.reposService.queueSync(id, user.id, accessToken);
+    return this.reposService.queueSync(id, user.id);
   }
 
   @Get(':id/status')

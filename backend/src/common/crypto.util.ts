@@ -4,12 +4,16 @@ const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16;
 const AUTH_TAG_LENGTH = 16;
 
+let cachedKey: Buffer | null = null;
+
 function getKey(): Buffer {
+  if (cachedKey) return cachedKey;
   const key = process.env.ENCRYPTION_KEY;
-  if (!key || key.length !== 64) {
+  if (!key || !/^[0-9a-fA-F]{64}$/.test(key)) {
     throw new Error('ENCRYPTION_KEY must be a 64-character hex string (32 bytes)');
   }
-  return Buffer.from(key, 'hex');
+  cachedKey = Buffer.from(key, 'hex');
+  return cachedKey;
 }
 
 export function encrypt(plaintext: string): string {

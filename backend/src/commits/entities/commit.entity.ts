@@ -7,6 +7,7 @@ import type { RepoEntity } from '../../repos/entities/repo.entity';
 
 @Entity('commits')
 @Index('idx_commits_repo_committed_at', ['repoId', 'committedAt'])
+@Index('idx_commits_repo_sha_unique', ['repoId', 'sha'], { unique: true })
 export class CommitEntity {
   @PrimaryGeneratedColumn('uuid') 
   id: string;
@@ -19,7 +20,7 @@ export class CommitEntity {
   @JoinColumn({ name: 'repo_id' }) 
   repo: Relation<RepoEntity>;
 
-  @Column({ unique: true }) 
+  @Column() 
   sha: string;
 
   @Column({ type: 'text' }) 

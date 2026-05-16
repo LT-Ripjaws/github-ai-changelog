@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 
 export interface GitHubRepoResponse {
   id: number;
@@ -39,6 +38,7 @@ export interface GitHubCommitResponse {
   };
   files?: Array<{
     filename: string;
+    patch?: string;
     additions: number;
     deletions: number;
     changes: number;
@@ -53,112 +53,112 @@ export interface GitHubReleaseResponse {
   published_at: string;
 }
 
+export interface GitHubCompareResponse {
+  commits?: Array<{ sha: string }>;
+}
+
 @Injectable()
 export class GithubService {
   private readonly logger = new Logger(GithubService.name);
   private readonly baseUrl = 'https://api.github.com';
 
-  constructor(private config: ConfigService) {}
-
-  
-   // Make authenticated request to GitHub API
-   
-  private async fetchWithAuth(
-    endpoint: string,
-    accessToken: string,
-  ): Promise<any> {
-    const url = `${this.baseUrl}${endpoint}`;
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: 'application/vnd.github.v3+json',
-        'User-Agent': 'Changelog-AI',
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      this.logger.error(`GitHub API error: ${response.status} ${response.statusText}`, error);
-
-      if (response.status === 401) {
-        throw new Error('GitHub token expired or revoked — please re-authenticate');
-      }
-      if (response.status === 403 && response.headers.get('x-ratelimit-remaining') === '0') {
-        throw new Error('GitHub API rate limit exceeded — try again later');
-      }
-      if (response.status === 404) {
-        throw new Error('Repository not found or access denied');
-      }
-      throw new Error(`GitHub API error: ${response.status}`);
-    }
-
-    return response.json();
+  private repoPath(owner: string, repo: string): string {
+    return `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
   }
 
-  
-    // Get repository info from GitHub
-   
+  private async fetchWithAuth<T>(endpoint: string, accessToken: string): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': 'RepoNarrate',
+        },
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        this.logger.error(`GitHub API error: ${response.status} ${response.statusText}`, error);
+
+        if (response.status === 401) {
+          throw new Error('GitHub token expired or revoked — please re-authenticate');
+        }
+        if (response.status === 403 && response.headers.get('x-ratelimit-remaining') === '0') {
+          throw new Error('GitHub API rate limit exceeded — try again later');
+        }
+        if (response.status === 404) {
+          throw new Error('Repository not found or access denied');
+        }
+        throw new Error(`GitHub API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data === null || typeof data !== 'object') {
+        throw new Error(`GitHub API returned invalid JSON for ${endpoint}`);
+      }
+      return data as T;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   async getRepo(
     owner: string,
     repo: string,
     accessToken: string,
   ): Promise<GitHubRepoResponse> {
-    return this.fetchWithAuth(`/repos/${owner}/${repo}`, accessToken);
+    return this.fetchWithAuth<GitHubRepoResponse>(this.repoPath(owner, repo), accessToken);
   }
 
-  
-   // Get commits from a repository (last N commits)
-   
   async getCommits(
     owner: string,
     repo: string,
     accessToken: string,
     limit: number = 100,
   ): Promise<GitHubCommitResponse[]> {
-    return this.fetchWithAuth(
-      `/repos/${owner}/${repo}/commits?per_page=${limit}`,
+    const params = new URLSearchParams({ per_page: String(limit) });
+    return this.fetchWithAuth<GitHubCommitResponse[]>(
+      `${this.repoPath(owner, repo)}/commits?${params}`,
       accessToken,
     );
   }
 
- 
-   // Get detailed commit info including diff stats
-   
   async getCommitDetail(
     owner: string,
     repo: string,
     sha: string,
     accessToken: string,
   ): Promise<GitHubCommitResponse> {
-    return this.fetchWithAuth(
-      `/repos/${owner}/${repo}/commits/${sha}`,
+    return this.fetchWithAuth<GitHubCommitResponse>(
+      `${this.repoPath(owner, repo)}/commits/${encodeURIComponent(sha)}`,
       accessToken,
     );
   }
 
-  
-   // Get releases from a repository
-   
   async getReleases(
     owner: string,
     repo: string,
     accessToken: string,
   ): Promise<GitHubReleaseResponse[]> {
-    return this.fetchWithAuth(`/repos/${owner}/${repo}/releases`, accessToken);
+    return this.fetchWithAuth<GitHubReleaseResponse[]>(
+      `${this.repoPath(owner, repo)}/releases`,
+      accessToken,
+    );
   }
 
-  
-   // Compare two commits (for diff between versions)
-   
   async compareCommits(
     owner: string,
     repo: string,
     base: string,
     head: string,
     accessToken: string,
-  ): Promise<any> {
-    return this.fetchWithAuth(
-      `/repos/${owner}/${repo}/compare/${base}...${head}`,
+  ): Promise<GitHubCompareResponse> {
+    return this.fetchWithAuth<GitHubCompareResponse>(
+      `${this.repoPath(owner, repo)}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`,
       accessToken,
     );
   }

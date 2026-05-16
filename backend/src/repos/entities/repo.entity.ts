@@ -5,6 +5,10 @@ import {
 } from 'typeorm';
 import type { Relation } from 'typeorm';
 import type { UserEntity } from '../../users/entities/user.entity';
+import type { CommitEntity } from '../../commits/entities/commit.entity';
+import type { ReleaseEntity } from '../../releases/entities/release.entity';
+
+export enum RepoStatus { Pending = 'pending', Syncing = 'syncing', Ready = 'ready', Error = 'error' }
 
 @Entity('repos')
 @Index('idx_repos_user_created_at', ['userId', 'createdAt'])
@@ -46,8 +50,8 @@ export class RepoEntity {
   @Column({ nullable: true }) 
   language: string;
 
-  @Column({ default: 'pending' })
-   status: string;
+  @Column({ type: 'simple-enum', enum: RepoStatus, default: RepoStatus.Pending })
+  status: RepoStatus;
    
   @Column({ name: 'error_message', nullable: true }) 
   errorMessage: string;
@@ -67,6 +71,6 @@ export class RepoEntity {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @OneToMany('CommitEntity', 'repo') commits: Relation<unknown[]>;
-  @OneToMany('ReleaseEntity', 'repo') releases: Relation<unknown[]>;
+  @OneToMany('CommitEntity', 'repo') commits: Relation<CommitEntity[]>;
+  @OneToMany('ReleaseEntity', 'repo') releases: Relation<ReleaseEntity[]>;
 }

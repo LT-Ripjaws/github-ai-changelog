@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
-import { RepoEntity } from './entities/repo.entity';
+import { RepoEntity, RepoStatus } from './entities/repo.entity';
 import { GithubService } from './github.service';
 import { CreateRepoDto } from './dto/create-repo.dto';
 import { JobsService } from '../jobs/jobs.service';
@@ -44,8 +44,9 @@ export class ReposService {
     let githubRepo;
     try {
       githubRepo = await this.githubService.getRepo(owner, repo, accessToken);
-    } catch (error) {
-      throw new NotFoundException('Repository not found on GitHub');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Repository not found on GitHub';
+      throw new NotFoundException(message);
     }
 
     // Create repo record
@@ -59,13 +60,12 @@ export class ReposService {
       isPrivate: githubRepo.private,
       starsCount: githubRepo.stargazers_count,
       language: githubRepo.language,
-      status: 'pending',
+      status: RepoStatus.Pending,
     });
 
     const saved = await this.reposRepo.save(repoEntity);
 
-    // Queue sync job
-    await this.jobsService.addSyncJob(saved.id, userId, accessToken);
+    await this.jobsService.addSyncJob(saved.id);
 
     this.logger.log(`Repo created: ${dto.fullName} for user ${userId}`);
     return saved;
@@ -105,28 +105,23 @@ export class ReposService {
     this.logger.log(`Repo deleted: ${repo.fullName} for user ${userId}`);
   }
 
-  
-   // Queue a sync job for an existing repo
-   
   async queueSync(
     id: string,
     userId: string,
-    accessToken: string,
   ): Promise<{ message: string }> {
-    const repo = await this.findOne(id, userId);
+    await this.findOne(id, userId);
 
     // Atomic check-and-update to prevent race conditions
-    // Allow sync from ready, error, or pending (in case initial job got stuck)
+    // Only ready/error repos can be queued. Pending/syncing already have work in flight.
     const result = await this.reposRepo.update(
-      { id, status: In(['ready', 'error', 'pending']) },
-      { status: 'pending' },
+      { id, status: In(['ready', 'error']) },
+      { status: RepoStatus.Pending },
     );
     if (result.affected === 0) {
       throw new ConflictException('Sync already in progress');
     }
 
-    // Queue sync job
-    await this.jobsService.addSyncJob(id, userId, accessToken);
+    await this.jobsService.addSyncJob(id);
 
     return { message: 'Sync queued' };
   }
@@ -156,11 +151,11 @@ export class ReposService {
   
   async updateStatus(
     id: string,
-    status: string,
+    status: RepoStatus,
     errorMessage?: string,
   ): Promise<void> {
     const updateData: {
-      status: string;
+      status: RepoStatus;
       errorMessage?: string;
       totalCommitsSynced?: number;
       totalCommitsToSync?: number;
@@ -169,7 +164,7 @@ export class ReposService {
     if (errorMessage) {
       updateData.errorMessage = errorMessage;
     }
-    if (status === 'syncing') {
+    if (status === RepoStatus.Syncing) {
       // Don't reset totalCommitsSynced if repo already has commits (re-sync case)
       // The count will be corrected at the end of sync
       const repo = await this.reposRepo.findOne({ where: { id } });
@@ -183,15 +178,10 @@ export class ReposService {
         updateData.totalCommitsToSync = 0;
       }
     }
-    if (status === 'ready') {
+    if (status === RepoStatus.Ready) {
       updateData.lastSyncedAt = new Date();
     }
     await this.reposRepo.update(id, updateData);
   }
 
-  
-   // Increment commit count (called during sync)
-  async incrementCommitCount(id: string): Promise<void> {
-    await this.reposRepo.increment({ id }, 'totalCommitsSynced', 1);
-  }
 }

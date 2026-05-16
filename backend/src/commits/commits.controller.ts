@@ -15,6 +15,10 @@ import { ListCommitsDto } from './dto/list-commits.dto';
 import { SearchCommitsDto } from './dto/search-commits.dto';
 import { ReposService } from '../repos/repos.service';
 
+interface AuthenticatedUser {
+  id: string;
+}
+
 @ApiTags('commits')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -37,7 +41,7 @@ export class CommitsController {
   async findAll(
     @Param('repoId') repoId: string,
     @Query() query: ListCommitsDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     // Verify user owns the repo
     await this.reposService.findOne(repoId, user.id);
@@ -53,7 +57,7 @@ export class CommitsController {
   async findOne(
     @Param('repoId') repoId: string,
     @Param('sha') sha: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     // Verify user owns the repo
     await this.reposService.findOne(repoId, user.id);
@@ -67,7 +71,7 @@ export class CommitsController {
   async search(
     @Param('repoId') repoId: string,
     @Body() body: SearchCommitsDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     await this.reposService.findOne(repoId, user.id);
     return this.commitsService.semanticSearch(repoId, body.query, body.limit);

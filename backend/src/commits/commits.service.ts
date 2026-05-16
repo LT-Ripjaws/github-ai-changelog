@@ -1,9 +1,25 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, DataSource } from 'typeorm';
+import { Between, DataSource, FindOptionsWhere, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { CommitEntity } from './entities/commit.entity';
 import { ListCommitsDto } from './dto/list-commits.dto';
 import { AiService } from '../ai/ai.service';
+
+interface SemanticSearchRow {
+  id: string;
+  sha: string;
+  message: string;
+  author_name: string | null;
+  author_github_login: string | null;
+  diff_summary: string | null;
+  ai_changelog: string | null;
+  category: string | null;
+  files_changed: number;
+  additions: number;
+  deletions: number;
+  committed_at: string;
+  similarity: string | number;
+}
 
 @Injectable()
 export class CommitsService {
@@ -18,7 +34,7 @@ export class CommitsService {
     const { page = 1, limit = 20, category, from, to } = query;
     const skip = (page - 1) * limit;
 
-    const where: any = { repoId };
+    const where: FindOptionsWhere<CommitEntity> = { repoId };
 
     if (category) {
       where.category = category;
@@ -27,7 +43,9 @@ export class CommitsService {
     if (from && to) {
       where.committedAt = Between(new Date(from), new Date(to));
     } else if (from) {
-      where.committedAt = Between(new Date(from), new Date());
+      where.committedAt = MoreThanOrEqual(new Date(from));
+    } else if (to) {
+      where.committedAt = LessThanOrEqual(new Date(to));
     }
 
     const [data, total] = await this.commitsRepo.findAndCount({
@@ -67,7 +85,7 @@ export class CommitsService {
 
     // pgvector cosine similarity: <=> operator returns distance (0 = identical, 2 = opposite)
     // So similarity = 1 - distance
-    const rows = await this.dataSource.query(
+    const rows = await this.dataSource.query<SemanticSearchRow[]>(
       `SELECT
         c.id, c.sha, c.message, c.author_name, c.author_github_login,
         c.diff_summary, c.ai_changelog, c.category,
@@ -83,7 +101,7 @@ export class CommitsService {
     );
 
     return {
-      results: rows.map((row: any) => ({
+      results: rows.map((row) => ({
         id: row.id,
         sha: row.sha,
         message: row.message,
@@ -96,7 +114,7 @@ export class CommitsService {
         additions: row.additions,
         deletions: row.deletions,
         committedAt: row.committed_at,
-        similarity: parseFloat(parseFloat(row.similarity).toFixed(4)),
+        similarity: parseFloat(Number(row.similarity).toFixed(4)),
       })),
     };
   }

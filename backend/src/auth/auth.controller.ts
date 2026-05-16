@@ -1,11 +1,17 @@
 import { Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { Request, Response } from 'express';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { GithubAuthGuard } from '../common/guards/github-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UsersService } from '../users/users.service';
+import { UserEntity } from '../users/entities/user.entity';
+
+interface GithubCallbackRequest extends Omit<Request, 'user'> {
+  user?: UserEntity | null;
+}
 
 @ApiTags('auth')
 @Controller('auth')
@@ -26,7 +32,7 @@ export class AuthController {
   @UseGuards(GithubAuthGuard)
   @ApiOperation({ summary: 'GitHub OAuth callback' })
   @ApiResponse({ status: 302, description: 'Redirects to frontend with JWT token or error' })
-  async githubCallback(@Req() req: any, @Res() res: any) {
+  async githubCallback(@Req() req: GithubCallbackRequest, @Res() res: Response) {
     if (!req.user) {
       return res.redirect(`${this.config.get('FRONTEND_URL')}/auth/callback#error=github_auth_failed`);
     }
@@ -34,7 +40,7 @@ export class AuthController {
     // Set httpOnly cookie for auth (replaces hash fragment redirect)
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: this.config.get('NODE_ENV') === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
@@ -59,7 +65,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Log out (clear auth cookie)' })
   @ApiResponse({ status: 200, description: 'Logged out successfully' })
-  logout(@Res() res: any) {
+  logout(@Res() res: Response) {
     res.clearCookie('token');
     return res.json({ message: 'Logged out' });
   }
