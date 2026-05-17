@@ -8,10 +8,11 @@ export default async function CommitsPage({
   params: { id: string };
 }) {
   const cookie = (await headers()).get("cookie") ?? null;
+  const { id } = params;
 
   let commitsData;
   try {
-    commitsData = await getCommitsServer(params.id, cookie, { page: 1, limit: 20 });
+    commitsData = await getCommitsServer(id, cookie, { page: 1, limit: 20 });
   } catch {
     return (
       <div className="space-y-6">
@@ -35,8 +36,8 @@ export default async function CommitsPage({
       </div>
 
       <CommitsClient
-        key={params.id}
-        repoId={params.id}
+        key={id}
+        repoId={id}
         initialData={{ commits: commitsData.data, meta: commitsData.meta }}
       />
     </div>

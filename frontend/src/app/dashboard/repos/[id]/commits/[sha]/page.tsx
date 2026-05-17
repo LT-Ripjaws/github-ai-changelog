@@ -2,22 +2,9 @@ import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { getCommitServer } from '@/lib/server-api';
 import { Badge } from '@/components/ui/badge';
-
-const CATEGORY_COLORS: Record<string, string> = {
-  breaking: "bg-red-500/15 text-red-400 border-red-500/30",
-  feature: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  fix: "bg-amber-500/15 text-amber-400 border-amber-500/30",
-  chore: "bg-slate-500/15 text-slate-400 border-slate-500/30",
-  docs: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  refactor: "bg-purple-500/15 text-purple-400 border-purple-500/30",
-};
-
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString("en-US", {
-    weekday: "short", month: "short", day: "numeric", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-}
+import { CATEGORY_COLORS } from '@/lib/constants';
+import type { Commit } from '@/lib/types';
+import { formatDate } from '@/lib/format';
 
 export default async function CommitDetailPage({
   params,
@@ -25,10 +12,11 @@ export default async function CommitDetailPage({
   params: { id: string; sha: string };
 }) {
   const cookie = (await headers()).get('cookie') ?? null;
+  const { id, sha } = params;
 
-  let commit: any;
+  let commit: Commit;
   try {
-    commit = await getCommitServer(params.id, params.sha, cookie);
+    commit = await getCommitServer(id, sha, cookie);
   } catch {
     notFound();
   }
@@ -67,7 +55,7 @@ export default async function CommitDetailPage({
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
               <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
             </svg>
-            <span>{formatDate(commit.committedAt)}</span>
+            <span>{formatDate(commit.committedAt, { withWeekday: true, withTime: true })}</span>
           </div>
           <div className="flex items-center gap-3 tabular-nums">
             <span className="text-emerald-400">+{commit.additions}</span>

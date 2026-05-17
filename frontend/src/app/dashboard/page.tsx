@@ -1,12 +1,13 @@
 // Server wrapper — fetches repos, passes to client component
 import { headers } from 'next/headers';
 import { getReposServer } from '@/lib/server-api';
+import type { Repo } from '@/lib/types';
 import DashboardClient from './DashboardClient';
 
 export default async function DashboardPage() {
   const cookie = (await headers()).get('cookie') ?? null;
 
-  let repos: any[] = [];
+  let repos: Repo[] = [];
   try {
     repos = await getReposServer(cookie);
   } catch {

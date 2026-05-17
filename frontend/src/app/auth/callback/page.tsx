@@ -3,8 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { getMe } from "@/lib/api";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { API_URL } from "@/lib/config";
 
 const ERROR_MESSAGES: Record<string, string> = {
   github_auth_failed: "GitHub authentication failed. This may happen if the OAuth app settings are misconfigured. Please try signing in again.",
@@ -47,7 +46,7 @@ export default function AuthCallback() {
         <Button variant="outline" onClick={() => { window.location.href = `${API_URL}/auth/github`; }}>
           Try Again
         </Button>
-        <Button variant="ghost" onClick={() => { window.location.href = "/"; }}>
+        <Button variant="ghost" onClick={() => router.push("/")}>
           Back to Home
         </Button>
       </div>
@@ -56,7 +55,7 @@ export default function AuthCallback() {
 
   return (
     <div className="flex items-center justify-center h-screen">
-      <p className="text-muted-foreground">Signing you in...</p>
+      <p className="text-muted-foreground">Signing you in…</p>
     </div>
   );
 }

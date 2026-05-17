@@ -21,11 +21,11 @@ export default memo(function CommitsOverTimeChart({ data }: Props) {
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border-subtle))" />
         <XAxis
           dataKey="month"
-          tick={{ fill: "hsl(var(--text-tertiary))", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif" }}
+          tick={{ fill: "hsl(var(--text-tertiary))", fontSize: 12, fontFamily: "var(--font-display), IBM Plex Sans, system-ui, sans-serif" }}
           axisLine={{ stroke: "hsl(var(--border-standard))" }}
         />
         <YAxis
-          tick={{ fill: "hsl(var(--text-tertiary))", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif" }}
+          tick={{ fill: "hsl(var(--text-tertiary))", fontSize: 12, fontFamily: "var(--font-display), IBM Plex Sans, system-ui, sans-serif" }}
           axisLine={{ stroke: "hsl(var(--border-standard))" }}
           allowDecimals={false}
         />
@@ -35,7 +35,7 @@ export default memo(function CommitsOverTimeChart({ data }: Props) {
             border: "1px solid hsl(var(--border-standard))",
             borderRadius: "6px",
             color: "hsl(var(--text-primary))",
-            fontFamily: "Inter, system-ui, sans-serif",
+            fontFamily: "var(--font-display), IBM Plex Sans, system-ui, sans-serif",
             fontSize: "12px",
           }}
         />

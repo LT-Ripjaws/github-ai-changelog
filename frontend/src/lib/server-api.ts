@@ -3,9 +3,8 @@
  * The browser cookie is forwarded to the backend via Cookie header. */
 
 import { cache } from 'react';
-import type { User } from './types';
-
-const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:3001';
+import { BACKEND_URL } from './config';
+import type { Analytics, Commit, PaginatedResponse, Release, Repo, User } from './types';
 
 function headers(cookie: string | null) {
   const h: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -21,31 +20,40 @@ export const getMeServer = cache(async (cookie: string | null): Promise<User | n
 
 /** Cached per-request: if multiple server components need the same repo
  * in one render, the fetch runs only once. */
-export const getRepoServer = cache(async (id: string, cookie: string | null) => {
+export const getRepoServer = cache(async (id: string, cookie: string | null): Promise<Repo> => {
   const res = await fetch(`${BACKEND_URL}/repos/${id}`, { headers: headers(cookie), cache: 'no-store' });
   if (!res.ok) throw new Error(`Failed to fetch repo: ${res.status}`);
   return res.json();
 });
 
-export async function getCommitServer(repoId: string, sha: string, cookie: string | null) {
+export async function getCommitServer(repoId: string, sha: string, cookie: string | null): Promise<Commit> {
   const res = await fetch(`${BACKEND_URL}/repos/${repoId}/commits/${sha}`, { headers: headers(cookie), cache: 'no-store' });
   if (!res.ok) throw new Error(`Failed to fetch commit: ${res.status}`);
   return res.json();
 }
 
-export async function getReleaseByTagNameServer(repoId: string, tagName: string, cookie: string | null) {
+export async function getReleaseByTagNameServer(repoId: string, tagName: string, cookie: string | null): Promise<Release> {
   const res = await fetch(`${BACKEND_URL}/repos/${repoId}/releases/tag/${encodeURIComponent(tagName)}`, { headers: headers(cookie), cache: 'no-store' });
   if (!res.ok) throw new Error(`Failed to fetch release: ${res.status}`);
   return res.json();
 }
 
-export async function getAnalyticsServer(repoId: string, cookie: string | null) {
-  const res = await fetch(`${BACKEND_URL}/repos/${repoId}/analytics`, { headers: headers(cookie), cache: 'no-store' });
+export async function getAnalyticsServer(
+  repoId: string,
+  cookie: string | null,
+  params?: { from?: string; to?: string },
+): Promise<Analytics> {
+  const sp = new URLSearchParams();
+  if (params?.from) sp.set('from', params.from);
+  if (params?.to) sp.set('to', params.to);
+  const query = sp.toString();
+  const url = `${BACKEND_URL}/repos/${repoId}/analytics${query ? `?${query}` : ''}`;
+  const res = await fetch(url, { headers: headers(cookie), cache: 'no-store' });
   if (!res.ok) throw new Error(`Failed to fetch analytics: ${res.status}`);
   return res.json();
 }
 
-export async function getReposServer(cookie: string | null) {
+export async function getReposServer(cookie: string | null): Promise<Repo[]> {
   const res = await fetch(`${BACKEND_URL}/repos`, { headers: headers(cookie), cache: 'no-store' });
   if (!res.ok) throw new Error(`Failed to fetch repos: ${res.status}`);
   return res.json();
@@ -55,7 +63,7 @@ export async function getCommitsServer(
   repoId: string,
   cookie: string | null,
   params?: { page?: number; limit?: number; category?: string },
-) {
+): Promise<PaginatedResponse<Commit>> {
   const sp = new URLSearchParams();
   if (params?.page) sp.set('page', String(params.page));
   if (params?.limit) sp.set('limit', String(params.limit));
@@ -70,7 +78,7 @@ export async function getReleasesServer(
   repoId: string,
   cookie: string | null,
   params?: { page?: number; limit?: number },
-) {
+): Promise<PaginatedResponse<Release>> {
   const sp = new URLSearchParams();
   if (params?.page) sp.set('page', String(params.page));
   if (params?.limit) sp.set('limit', String(params.limit));

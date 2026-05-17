@@ -31,17 +31,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              document.documentElement.classList.add('dark');
-              document.documentElement.style.colorScheme = 'dark';
-            `,
-          }}
-        />
-      </head>
+    <html lang="en" className="dark" style={{ colorScheme: "dark" }}>
       <body
         className={`${displayFont.variable} ${monoFont.variable} font-sans antialiased font-feature-settings-cv01-ss03`}
       >

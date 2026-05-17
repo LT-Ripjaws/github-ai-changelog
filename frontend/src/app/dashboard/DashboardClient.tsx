@@ -1,11 +1,12 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { RepoCard } from "@/components/repos/RepoCard";
 import { SkeletonRepoCard } from "@/components/ui/skeleton";
 import { EmptyRepos } from "@/components/ui/empty-state";
 import { createRepo, syncRepo, deleteRepo, getRepoStatus, getRepos } from "@/lib/api";
+import { getErrorMessage } from "@/lib/errors";
 import type { Repo } from "@/lib/types";
 
 const ConnectRepoModal = dynamic(
@@ -23,22 +24,49 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
   const [error, setError] = useState<string | null>(null);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [syncingRepos, setSyncingRepos] = useState<Record<string, { synced: number; total: number }>>({});
+  const mountedRef = useRef(true);
+  const activePollers = useRef<Set<string>>(new Set());
+  const pollTimeouts = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
-  const fetchRepos = async () => {
+  // Cancelable sleep: timer is tracked so unmount cleanup can clear it,
+  // preventing the poll loop from running an extra iteration after unmount.
+  const sleep = (ms: number) =>
+    new Promise<void>((resolve) => {
+      const timer = setTimeout(() => {
+        pollTimeouts.current.delete(timer);
+        resolve();
+      }, ms);
+      pollTimeouts.current.add(timer);
+    });
+
+  useEffect(() => {
+    const timers = pollTimeouts.current;
+    return () => {
+      mountedRef.current = false;
+      timers.forEach(clearTimeout);
+      timers.clear();
+    };
+  }, []);
+
+  const fetchRepos = useCallback(async () => {
+    if (!mountedRef.current) return;
     try {
       const data = await getRepos();
+      if (!mountedRef.current) return;
       setRepos(data);
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to fetch repositories");
+    } catch (err: unknown) {
+      if (!mountedRef.current) return;
+      const msg = getErrorMessage(err, 'Failed to fetch repositories');
+      setError(msg);
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     // Only fetch if initial data was empty (first visit after logout/re-login)
     if (initialRepos.length === 0) fetchRepos();
-  }, []);
+  }, [initialRepos.length, fetchRepos]);
 
   const handleConnect = async (fullName: string) => {
     const newRepo = await createRepo(fullName);
@@ -47,24 +75,37 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
   };
 
   const pollRepoUntilReady = async (repoId: string) => {
-    const maxAttempts = 60;
-    for (let i = 0; i < maxAttempts; i++) {
-      await new Promise((r) => setTimeout(r, 2000));
-      try {
-        const updated = await getRepoStatus(repoId);
-        setRepos((prev) => prev.map((r) => (r.id === repoId ? { ...r, ...updated } : r)));
-        setSyncingRepos((prev) => ({ ...prev, [repoId]: { synced: updated.totalCommitsSynced, total: updated.totalCommitsToSync } }));
-        if (updated.status === 'ready' || updated.status === 'error') {
-          await new Promise((r) => setTimeout(r, 1000));
-          const final = await getRepoStatus(repoId);
-          setRepos((prev) => prev.map((r) => (r.id === repoId ? { ...r, ...final } : r)));
+    // Dedup: a connect-then-sync or rapid Sync clicks must not spawn
+    // overlapping pollers for the same repo.
+    if (activePollers.current.has(repoId)) return;
+    activePollers.current.add(repoId);
+    try {
+      const maxAttempts = 60;
+      for (let i = 0; i < maxAttempts; i++) {
+        await sleep(2000);
+        if (!mountedRef.current) return;
+        try {
+          const updated = await getRepoStatus(repoId);
+          if (!mountedRef.current) return;
+          setRepos((prev) => prev.map((r) => (r.id === repoId ? { ...r, ...updated } : r)));
+          setSyncingRepos((prev) => ({ ...prev, [repoId]: { synced: updated.totalCommitsSynced, total: updated.totalCommitsToSync } }));
+          if (updated.status === 'ready' || updated.status === 'error') {
+            await sleep(1000);
+            if (!mountedRef.current) return;
+            const final = await getRepoStatus(repoId);
+            if (!mountedRef.current) return;
+            setRepos((prev) => prev.map((r) => (r.id === repoId ? { ...r, ...final } : r)));
+            setSyncingRepos((prev) => { const next = { ...prev }; delete next[repoId]; return next; });
+            break;
+          }
+        } catch {
+          if (!mountedRef.current) return;
           setSyncingRepos((prev) => { const next = { ...prev }; delete next[repoId]; return next; });
           break;
         }
-      } catch {
-        setSyncingRepos((prev) => { const next = { ...prev }; delete next[repoId]; return next; });
-        break;
       }
+    } finally {
+      activePollers.current.delete(repoId);
     }
   };
 
@@ -86,8 +127,9 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
     try {
       await syncRepo(id);
       pollRepoUntilReady(id);
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to queue repository sync");
+    } catch (err: unknown) {
+      const msg = getErrorMessage(err, 'Failed to queue repository sync');
+      setError(msg);
       setSyncingRepos((prev) => { const next = { ...prev }; delete next[id]; return next; });
       throw err;
     }

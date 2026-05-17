@@ -4,17 +4,8 @@ import { notFound } from "next/navigation";
 import { SyncStatusBadge } from "@/components/app/SyncStatusBadge";
 import { getReleasesServer, getRepoServer } from "@/lib/server-api";
 import type { PaginatedResponse, Release, Repo } from "@/lib/types";
-
-function formatDate(value: string | null) {
-  if (!value) return "Never";
-  return new Date(value).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import { safeErrorMessage } from '@/lib/errors';
+import { formatDate } from "@/lib/format";
 
 function statusCopy(repo: Repo) {
   switch (repo.status) {
@@ -131,14 +122,14 @@ export default async function RepoOverviewPage({
 
           {repo.status === "error" && repo.errorMessage ? (
             <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3" role="alert">
-              <p className="text-sm text-destructive">{repo.errorMessage}</p>
+              <p className="text-sm text-destructive">{safeErrorMessage(repo.errorMessage)}</p>
             </div>
           ) : null}
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {[
               { label: "Commits indexed", value: repo.totalCommitsSynced.toLocaleString() },
-              { label: "Last synced", value: formatDate(repo.lastSyncedAt), compact: true },
+              { label: "Last synced", value: formatDate(repo.lastSyncedAt, { withTime: true }), compact: true },
               { label: "Default branch", value: repo.defaultBranch, code: true },
               { label: "Visibility", value: repo.isPrivate ? "Private" : "Public" },
             ].map((stat) => (
@@ -183,7 +174,7 @@ export default async function RepoOverviewPage({
                   <p className="text-sm text-text-secondary">{latestRelease.releaseName}</p>
                 ) : null}
                 <p className="text-xs text-text-tertiary tabular-nums">
-                  Released {formatDate(latestRelease.releasedAt)}
+                  Released {formatDate(latestRelease.releasedAt, { withTime: true })}
                 </p>
                 {latestRelease.aiSummary ? (
                   <p className="line-clamp-4 text-sm leading-6 text-text-secondary">

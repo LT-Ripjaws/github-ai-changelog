@@ -102,7 +102,7 @@
   padding: 0.5rem 1rem;
   border-radius: 6px;
   border: 1px solid hsl(var(--border-standard));
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
 }
 .btn-linear-ghost:hover {
   background: hsl(var(--surface-3) / 0.6);
@@ -115,7 +115,7 @@
   padding: 0.5rem 1rem;
   border-radius: 6px;
   border: none;
-  transition: all 0.25s ease;
+  transition: background-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
   box-shadow: 0 2px 8px hsl(var(--brand-indigo) / 0.25);
 }
 .btn-linear-primary:hover {
@@ -129,7 +129,7 @@
   padding: 0.25rem 0.5rem;
   border-radius: 6px;
   border: none;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 .btn-linear-subtle:hover { background: hsl(var(--surface-3)); }
 
@@ -138,7 +138,7 @@
   background: hsl(var(--card));
   border: 1px solid hsl(var(--border-standard));
   border-radius: 12px;
-  transition: all 0.25s ease;
+  transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
   box-shadow: 0 0 0 1px rgba(255,255,255,0.05), inset 0 1px 0 rgba(255,255,255,0.03) !important;
 }
 .card-linear:hover {
@@ -153,7 +153,7 @@
 .badge-linear-neutral { background: transparent; color: hsl(var(--text-secondary)); padding: 0 10px 0 5px; border-radius: 9999px; border: 1px solid hsl(var(--border-standard)); font-size: 12px; font-weight: 500; }
 
 /* === Inputs === */
-.input-linear { background: hsl(var(--card)); color: hsl(var(--text-primary)); border: 1px solid hsl(var(--border-standard)); padding: 0.75rem 0.875rem; border-radius: 6px; transition: all 0.2s ease; }
+.input-linear { background: hsl(var(--card)); color: hsl(var(--text-primary)); border: 1px solid hsl(var(--border-standard)); padding: 0.75rem 0.875rem; border-radius: 6px; transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease; }
 .input-linear.pl-10 { padding-left: 2.5rem; }
 .input-linear:focus { outline: none; border-color: hsl(var(--brand-indigo)); box-shadow: 0 0 0 2px hsl(var(--brand-indigo) / 0.2); }
 

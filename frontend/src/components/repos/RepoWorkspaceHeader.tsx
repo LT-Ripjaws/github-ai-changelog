@@ -2,20 +2,10 @@ import Link from "next/link";
 import { RepoSyncControl } from "@/components/repos/RepoSyncControl";
 import { RepoWorkspaceTabs } from "@/components/repos/RepoWorkspaceTabs";
 import type { Repo } from "@/lib/types";
+import { formatDate } from "@/lib/format";
 
 interface RepoWorkspaceHeaderProps {
   repo: Repo;
-}
-
-function formatDate(value: string | null) {
-  if (!value) return "Never synced";
-  return new Date(value).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 export function RepoWorkspaceHeader({ repo }: RepoWorkspaceHeaderProps) {
@@ -58,7 +48,7 @@ export function RepoWorkspaceHeader({ repo }: RepoWorkspaceHeaderProps) {
               </span>
               <span className="tabular-nums">Stars: {repo.starsCount.toLocaleString()}</span>
               <span>Language: {repo.language || "—"}</span>
-              <span>Last sync: {formatDate(repo.lastSyncedAt)}</span>
+              <span>Last sync: {formatDate(repo.lastSyncedAt, { withTime: true, fallback: "Never synced" })}</span>
             </div>
           </div>
 

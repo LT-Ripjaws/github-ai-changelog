@@ -1,10 +1,32 @@
 import axios from 'axios';
+import { API_URL } from './config';
 import type { User, Repo, RepoStatus, Commit, Release, PaginatedResponse, SearchResult, Analytics } from './types';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
-  withCredentials: true, // browser auto-sends cookies
+  baseURL: API_URL,
+  withCredentials: true, // browser auto-sends the httpOnly auth cookie
 });
+
+// CSRF is enforced server-side via Origin/Referer allowlist + SameSite=lax
+// auth cookie. No client token is needed (and a cross-origin SPA cannot read
+// an API-domain cookie anyway).
+
+// On 401 from an authenticated area, the cookie expired/was cleared. Bounce to
+// "/" so the server-side SSR auth gate re-runs. Scoped to /dashboard so the
+// landing page's expected anonymous /auth/me 401 does NOT cause a redirect.
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (
+      typeof window !== 'undefined' &&
+      error?.response?.status === 401 &&
+      window.location.pathname.startsWith('/dashboard')
+    ) {
+      window.location.replace('/');
+    }
+    return Promise.reject(error);
+  },
+);
 
 // Auth
 export const getMe = () => api.get<User>('/auth/me').then(r => r.data);

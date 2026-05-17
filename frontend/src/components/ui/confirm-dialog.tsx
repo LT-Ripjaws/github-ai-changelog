@@ -56,13 +56,15 @@ export function ConfirmDialog({
       }
     };
 
+    const previousOverflow = document.body.style.overflow;
     document.addEventListener("keydown", handleKeyDown);
     // Prevent body scroll
     document.body.style.overflow = "hidden";
 
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "";
+      // Restore the prior value (not blank) so a parent scroll-lock survives.
+      document.body.style.overflow = previousOverflow;
     };
   }, [open, onCancel]);
 

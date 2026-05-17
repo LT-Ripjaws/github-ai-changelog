@@ -11,7 +11,7 @@ export function SyncStatusBadge({ status }: SyncStatusBadgeProps) {
       case 'pending':
         return { label: 'Pending', className: 'badge-linear-neutral' };
       case 'syncing':
-        return { label: 'Syncing...', className: 'bg-brand-indigo/10 text-brand-indigo border border-brand-indigo/20' };
+        return { label: 'Syncing…', className: 'bg-brand-indigo/10 text-brand-indigo border border-brand-indigo/20' };
       case 'ready':
         return { label: 'Ready', className: 'badge-linear-success' };
       case 'error':

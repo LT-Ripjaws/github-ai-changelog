@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SyncStatusBadge } from "@/components/app/SyncStatusBadge";
 import { getRepo, getRepoStatus, syncRepo } from "@/lib/api";
 import type { Repo } from "@/lib/types";
+import { safeErrorMessage } from '@/lib/errors';
 
 interface RepoSyncControlProps {
   repoId: string;
@@ -14,6 +15,13 @@ interface RepoSyncControlProps {
 export function RepoSyncControl({ repoId, initialRepo }: RepoSyncControlProps) {
   const [repo, setRepo] = useState<Repo>(initialRepo);
   const [syncing, setSyncing] = useState(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const isSyncing = repo.status === "syncing" || syncing;
   const progressPercent = repo.totalCommitsToSync > 0
@@ -21,6 +29,7 @@ export function RepoSyncControl({ repoId, initialRepo }: RepoSyncControlProps) {
     : 0;
 
   const handleSync = useCallback(async () => {
+    if (!mountedRef.current) return;
     setSyncing(true);
     try {
       await syncRepo(repoId);
@@ -28,17 +37,20 @@ export function RepoSyncControl({ repoId, initialRepo }: RepoSyncControlProps) {
 
       for (let i = 0; i < maxAttempts; i++) {
         await new Promise((resolve) => setTimeout(resolve, 2000));
+        if (!mountedRef.current) return;
         const updated = await getRepoStatus(repoId);
+        if (!mountedRef.current) return;
         setRepo((prev) => ({ ...prev, ...updated }));
         if (updated.status === "ready" || updated.status === "error") break;
       }
 
+      if (!mountedRef.current) return;
       const final = await getRepo(repoId);
-      setRepo(final);
+      if (mountedRef.current) setRepo(final);
     } catch {
       // Keep the current repo state; the backend exposes detailed errors in status polling.
     } finally {
-      setSyncing(false);
+      if (mountedRef.current) setSyncing(false);
     }
   }, [repoId]);
 
@@ -80,7 +92,7 @@ export function RepoSyncControl({ repoId, initialRepo }: RepoSyncControlProps) {
 
       {repo.status === "error" && repo.errorMessage ? (
         <p className="max-w-xs text-right text-xs text-destructive" role="alert">
-          {repo.errorMessage}
+          {safeErrorMessage(repo.errorMessage)}
         </p>
       ) : null}
     </div>

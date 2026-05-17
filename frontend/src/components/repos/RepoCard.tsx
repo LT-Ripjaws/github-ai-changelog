@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { SyncStatusBadge } from "@/components/app/SyncStatusBadge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { Repo } from "@/lib/types";
+import { safeErrorMessage } from '@/lib/errors';
+import { formatDate } from "@/lib/format";
 
 interface SyncProgress {
   synced: number;
@@ -18,15 +20,6 @@ interface RepoCardProps {
   syncProgress: SyncProgress | null;
   onSync: (id: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
-}
-
-function formatDate(value: string | null) {
-  if (!value) return "Never synced";
-  return new Date(value).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 export const RepoCard = memo(function RepoCard({ repo, syncProgress, onSync, onDelete }: RepoCardProps) {
@@ -91,7 +84,7 @@ export const RepoCard = memo(function RepoCard({ repo, syncProgress, onSync, onD
   };
 
   return (
-    <Card className="card-linear group overflow-visible animate-fade-in-up transition-all">
+    <Card className="card-linear group overflow-visible animate-fade-in-up transition-colors">
       <Link
         href={overviewHref}
         prefetch
@@ -177,13 +170,13 @@ export const RepoCard = memo(function RepoCard({ repo, syncProgress, onSync, onD
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-text-tertiary font-feature-settings-cv01-ss03">Last sync</p>
-              <p className="mt-1 text-text-primary tabular-nums">{formatDate(repo.lastSyncedAt)}</p>
+              <p className="mt-1 text-text-primary tabular-nums">{formatDate(repo.lastSyncedAt, { fallback: "Never synced" })}</p>
             </div>
           </div>
 
           {repo.status === "error" && repo.errorMessage ? (
             <div className="rounded-md border border-destructive/20 bg-destructive/10 p-2" role="alert">
-              <p className="text-sm text-destructive">{repo.errorMessage}</p>
+              <p className="text-sm text-destructive">{safeErrorMessage(repo.errorMessage)}</p>
             </div>
           ) : null}
         </CardContent>

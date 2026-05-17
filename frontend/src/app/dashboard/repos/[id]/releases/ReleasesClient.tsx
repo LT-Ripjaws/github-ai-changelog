@@ -3,23 +3,17 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { getReleases } from "@/lib/api";
+import { getErrorMessage } from "@/lib/errors";
 import type { Release } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SkeletonReleaseCard } from "@/components/ui/skeleton";
 import { EmptyReleases } from "@/components/ui/empty-state";
+import { formatDate } from "@/lib/format";
 
 interface ReleasesClientProps {
   repoId: string;
   initialData: { releases: Release[]; meta: { page: number; totalPages: number; total: number } };
-}
-
-function formatDate(date: string) {
-  return new Date(date).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 function ChangeSection({
@@ -73,8 +67,8 @@ export default function ReleasesClient({ repoId, initialData }: ReleasesClientPr
       const res = await getReleases(repoId, { page: p, limit: 20 });
       setReleases(res.data);
       setMeta(res.meta);
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to fetch releases");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Failed to fetch releases"));
     } finally {
       setLoading(false);
     }

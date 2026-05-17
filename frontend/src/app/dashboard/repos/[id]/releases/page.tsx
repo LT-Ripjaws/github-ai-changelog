@@ -8,10 +8,11 @@ export default async function ReleasesPage({
   params: { id: string };
 }) {
   const cookie = (await headers()).get("cookie") ?? null;
+  const { id } = params;
 
   let releasesData;
   try {
-    releasesData = await getReleasesServer(params.id, cookie, { page: 1, limit: 20 });
+    releasesData = await getReleasesServer(id, cookie, { page: 1, limit: 20 });
   } catch {
     return (
       <div className="space-y-6">
@@ -35,8 +36,8 @@ export default async function ReleasesPage({
       </div>
 
       <ReleasesClient
-        key={params.id}
-        repoId={params.id}
+        key={id}
+        repoId={id}
         initialData={{ releases: releasesData.data, meta: releasesData.meta }}
       />
     </div>

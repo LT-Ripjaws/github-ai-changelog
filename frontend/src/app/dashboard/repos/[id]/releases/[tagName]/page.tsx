@@ -3,13 +3,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getReleaseByTagNameServer } from '@/lib/server-api';
 import { Badge } from '@/components/ui/badge';
-
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString("en-US", {
-    weekday: "short", month: "short", day: "numeric", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-}
+import type { Release } from '@/lib/types';
+import { formatDate } from '@/lib/format';
 
 export default async function ReleaseDetailPage({
   params,
@@ -17,11 +12,12 @@ export default async function ReleaseDetailPage({
   params: { id: string; tagName: string };
 }) {
   const cookie = (await headers()).get('cookie') ?? null;
-  const tagName = decodeURIComponent(params.tagName);
+  const { id, tagName: rawTagName } = params;
+  const tagName = decodeURIComponent(rawTagName);
 
-  let release: any;
+  let release: Release;
   try {
-    release = await getReleaseByTagNameServer(params.id, tagName, cookie);
+    release = await getReleaseByTagNameServer(id, tagName, cookie);
   } catch {
     notFound();
   }
@@ -39,7 +35,7 @@ export default async function ReleaseDetailPage({
               )}
             </div>
             <div className="flex items-center gap-4 text-sm text-text-tertiary">
-              <span>{formatDate(release.releasedAt)}</span>
+              <span>{formatDate(release.releasedAt, { withWeekday: true, withTime: true })}</span>
               <span className="tabular-nums">{release.commitsCount} commits</span>
             </div>
           </div>
@@ -153,7 +149,7 @@ export default async function ReleaseDetailPage({
 
       {/* Back link */}
       <div className="pt-2">
-        <Link href={`/dashboard/repos/${params.id}/releases`} className="text-sm text-text-tertiary hover:text-text-primary transition-colors">
+        <Link href={`/dashboard/repos/${id}/releases`} className="text-sm text-text-tertiary hover:text-text-primary transition-colors">
           &larr; Back to all releases
         </Link>
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { getCommits, searchCommits } from "@/lib/api";
 import type { Commit, SearchResult } from "@/lib/types";
@@ -10,30 +10,14 @@ import { Input } from "@/components/ui/input";
 import { SkeletonCommitRow } from "@/components/ui/skeleton";
 import { EmptyCommits, EmptySearch } from "@/components/ui/empty-state";
 import SemanticSearchBar from "@/components/commits/SemanticSearchBar";
+import { getErrorMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
-
-const CATEGORY_COLORS: Record<string, string> = {
-  breaking: "bg-red-500/15 text-red-400 border-red-500/30",
-  feature: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  fix: "bg-amber-500/15 text-amber-400 border-amber-500/30",
-  chore: "bg-slate-500/15 text-slate-400 border-slate-500/30",
-  docs: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  refactor: "bg-purple-500/15 text-purple-400 border-purple-500/30",
-};
-
-const CATEGORIES = ["breaking", "feature", "fix", "chore", "docs", "refactor"];
+import { CATEGORY_COLORS, CATEGORIES } from "@/lib/constants";
+import { formatDate } from "@/lib/format";
 
 interface CommitsClientProps {
   repoId: string;
   initialData: { commits: Commit[]; meta: { page: number; totalPages: number; total: number } };
-}
-
-function formatDate(date: string) {
-  return new Date(date).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 function truncate(value: string, length: number) {
@@ -54,7 +38,7 @@ function CommitRow({ repoId, commit }: CommitRowProps) {
     <Link
       href={`/dashboard/repos/${repoId}/commits/${commit.sha}`}
       prefetch
-      className="block card-linear p-4 transition-all hover:border-brand-indigo/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-indigo/60"
+      className="block card-linear p-4 transition-colors hover:border-brand-indigo/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-indigo/60"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
@@ -105,7 +89,7 @@ function SearchResultRow({ repoId, result }: SearchResultRowProps) {
     <Link
       href={`/dashboard/repos/${repoId}/commits/${result.sha}`}
       prefetch
-      className="block card-linear p-4 transition-all hover:border-brand-indigo/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-indigo/60"
+      className="block card-linear p-4 transition-colors hover:border-brand-indigo/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-indigo/60"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
@@ -159,6 +143,8 @@ export default function CommitsClient({ repoId, initialData }: CommitsClientProp
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [isSearchMode, setIsSearchMode] = useState(false);
+  const initialDataRef = useRef(initialData);
+  initialDataRef.current = initialData;
 
   const resetSearchMode = useCallback((clearInput = false) => {
     setIsSearchMode(false);
@@ -181,8 +167,8 @@ export default function CommitsClient({ repoId, initialData }: CommitsClientProp
       });
       setCommits(res.data);
       setMeta(res.meta);
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to fetch commits");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Failed to fetch commits"));
     } finally {
       setLoading(false);
     }
@@ -192,17 +178,17 @@ export default function CommitsClient({ repoId, initialData }: CommitsClientProp
     if (isSearchMode) return;
 
     if (page === 1 && !category && !fromDate && !toDate) {
-      setCommits(initialData.commits);
-      setMeta(initialData.meta);
+      setCommits(initialDataRef.current.commits);
+      setMeta(initialDataRef.current.meta);
       setLoading(false);
       setError(null);
       return;
     }
 
     void fetchCommits(page, category, fromDate, toDate);
-  }, [category, fetchCommits, fromDate, initialData.commits, initialData.meta, isSearchMode, page, toDate]);
+  }, [category, fetchCommits, fromDate, isSearchMode, page, toDate]);
 
-  const handleSearch = async (query: string) => {
+  const handleSearch = useCallback(async (query: string) => {
     setSearchLoading(true);
     setSearchError(null);
     setSubmittedSearchQuery(query);
@@ -212,13 +198,13 @@ export default function CommitsClient({ repoId, initialData }: CommitsClientProp
     try {
       const res = await searchCommits(repoId, query, 10);
       setSearchResults(res.results);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setSearchResults([]);
-      setSearchError(err.response?.data?.message || "Search failed");
+      setSearchError(getErrorMessage(err, "Search failed"));
     } finally {
       setSearchLoading(false);
     }
-  };
+  }, [repoId]);
 
   const applyCategory = (nextCategory: string) => {
     setCategory(nextCategory);

@@ -11,10 +11,11 @@ export default async function RepoWorkspaceLayout({
   params: { id: string };
 }) {
   const cookie = (await headers()).get("cookie") ?? null;
+  const { id } = params;
 
   let repo;
   try {
-    repo = await getRepoServer(params.id, cookie);
+    repo = await getRepoServer(id, cookie);
   } catch {
     notFound();
   }

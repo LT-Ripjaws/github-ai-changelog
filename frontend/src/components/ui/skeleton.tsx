@@ -2,6 +2,8 @@
 
 import { cn } from "@/lib/utils";
 
+const CHART_SKELETON_HEIGHTS = ["42%", "68%", "55%", "82%", "47%", "73%", "60%"];
+
 interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: "default" | "card" | "text" | "avatar" | "button";
 }
@@ -28,23 +30,6 @@ function Skeleton({
 }
 
 // Pre-built skeleton patterns for common use cases
-function SkeletonCard() {
-  return (
-    <div className="card-linear p-6 space-y-4 animate-fade-in-up">
-      <div className="flex items-center space-x-4">
-        <Skeleton variant="avatar" className="h-12 w-12" />
-        <div className="space-y-2 flex-1">
-          <Skeleton variant="text" className="h-4 w-3/4" />
-          <Skeleton variant="text" className="h-3 w-1/2" />
-        </div>
-      </div>
-      <Skeleton variant="text" className="h-3 w-full" />
-      <Skeleton variant="text" className="h-3 w-5/6" />
-      <Skeleton variant="text" className="h-3 w-4/6" />
-    </div>
-  );
-}
-
 function SkeletonRepoCard() {
   return (
     <div className="card-linear p-6 space-y-4 animate-fade-in-up">
@@ -98,12 +83,12 @@ function SkeletonChart() {
     <div className="card-linear p-6 animate-fade-in-up">
       <Skeleton variant="text" className="h-5 w-1/3 mb-4" />
       <div className="h-64 flex items-end space-x-2">
-        {Array.from({ length: 7 }).map((_, i) => (
+        {CHART_SKELETON_HEIGHTS.map((height, i) => (
           <Skeleton
             key={i}
             variant="default"
             className="flex-1 animate-pulse-subtle"
-            style={{ height: `${Math.random() * 60 + 20}%` }}
+            style={{ height }}
           />
         ))}
       </div>
@@ -113,7 +98,6 @@ function SkeletonChart() {
 
 export {
   Skeleton,
-  SkeletonCard,
   SkeletonRepoCard,
   SkeletonCommitRow,
   SkeletonReleaseCard,

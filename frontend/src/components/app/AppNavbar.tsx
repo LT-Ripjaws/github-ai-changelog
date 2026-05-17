@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { API_URL } from "@/lib/config";
 import type { User } from "@/lib/types";
 
 interface AppNavbarProps {
@@ -11,13 +14,14 @@ interface AppNavbarProps {
 }
 
 export function AppNavbar({ initialUser }: AppNavbarProps) {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(initialUser);
   const [loggingOut, setLoggingOut] = useState(false);
 
   const logout = async () => {
     setLoggingOut(true);
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
+      await fetch(`${API_URL}/auth/logout`, {
         method: "POST",
         credentials: "include",
       });
@@ -25,7 +29,7 @@ export function AppNavbar({ initialUser }: AppNavbarProps) {
       // Redirect anyway; the server cookie may already be gone or unreachable.
     } finally {
       setUser(null);
-      window.location.replace("/");
+      router.replace("/");
     }
   };
 
@@ -34,7 +38,7 @@ export function AppNavbar({ initialUser }: AppNavbarProps) {
       <div className="flex h-16 items-center justify-between px-6">
         <div className="flex items-center gap-6">
           <Link href="/dashboard" prefetch className="flex items-center gap-2">
-            <img src="/logo.png" alt="RepoNarrate" className="h-8 w-8" />
+            <Image src="/logo.png" alt="RepoNarrate" width={32} height={32} priority className="h-8 w-8 object-contain" />
             <span className="font-feature-settings-cv01-ss03 text-lg font-medium text-text-primary">
               RepoNarrate
             </span>
