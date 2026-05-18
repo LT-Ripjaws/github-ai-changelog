@@ -1,6 +1,7 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -23,50 +24,8 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
-  const dialogRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-
-    // Focus cancel button on open
-    cancelRef.current?.focus();
-
-    // Trap focus and handle Escape
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onCancel();
-        return;
-      }
-
-      if (e.key === "Tab" && dialogRef.current) {
-        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last?.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first?.focus();
-        }
-      }
-    };
-
-    const previousOverflow = document.body.style.overflow;
-    document.addEventListener("keydown", handleKeyDown);
-    // Prevent body scroll
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      // Restore the prior value (not blank) so a parent scroll-lock survives.
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [open, onCancel]);
+  const dialogRef = useFocusTrap(open, { onEscape: onCancel, initialFocusRef: cancelRef });
 
   if (!open) return null;
 

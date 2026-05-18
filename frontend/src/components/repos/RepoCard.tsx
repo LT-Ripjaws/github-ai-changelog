@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SyncStatusBadge } from "@/components/app/SyncStatusBadge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { SyncProgress } from "@/components/repos/SyncProgress";
 import type { Repo } from "@/lib/types";
 import { safeErrorMessage } from '@/lib/errors';
 import { formatDate } from "@/lib/format";
@@ -57,12 +58,14 @@ export const RepoCard = memo(function RepoCard({ repo, syncProgress, onSync, onD
   const isSyncing = syncProgress !== null;
   const displayCommits = isSyncing ? syncProgress.synced : repo.totalCommitsSynced;
   const displayTotal = isSyncing ? syncProgress.total : repo.totalCommitsToSync || 0;
-  const progressPercent = displayTotal > 0 ? Math.min(100, Math.round((displayCommits / displayTotal) * 100)) : 0;
 
   const handleSync = async () => {
     setSyncing(true);
     try {
       await onSync(repo.id);
+    } catch {
+      // The dashboard surfaces this via its error banner; swallow here so the
+      // click handler doesn't leak an unhandled promise rejection.
     } finally {
       setSyncing(false);
     }
@@ -132,33 +135,12 @@ export const RepoCard = memo(function RepoCard({ repo, syncProgress, onSync, onD
           </div>
 
           {isSyncing ? (
-            <div aria-live="polite">
-              {displayTotal > 0 ? (
-                <>
-                  <div className="mb-1 flex items-center justify-between text-xs text-text-tertiary tabular-nums">
-                    <span>{displayCommits} / {displayTotal} commits</span>
-                    <span>{progressPercent}%</span>
-                  </div>
-                  <div className="h-1.5 w-full rounded-full bg-surface-2">
-                    <div
-                      className="h-1.5 rounded-full bg-brand-indigo transition-[width] duration-500"
-                      style={{ width: `${progressPercent}%` }}
-                      role="progressbar"
-                      aria-valuenow={progressPercent}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                    />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
-                    <div className="h-1.5 w-1/3 rounded-full bg-brand-indigo animate-pulse" />
-                  </div>
-                  <p className="mt-1 text-xs text-text-tertiary">Discovering commits…</p>
-                </>
-              )}
-            </div>
+            <SyncProgress
+              synced={displayCommits}
+              total={displayTotal}
+              unit="commits"
+              pendingLabel="Discovering commits…"
+            />
           ) : null}
 
           <div className="grid grid-cols-2 gap-3 border-t border-border-subtle pt-4 text-sm">

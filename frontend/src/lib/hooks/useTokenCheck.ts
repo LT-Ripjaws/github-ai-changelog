@@ -8,10 +8,12 @@ export function useTokenCheck() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
     getMe()
-      .then(() => setHasToken(true))
-      .catch(() => setHasToken(false))
-      .finally(() => setLoading(false));
+      .then(() => { if (active) setHasToken(true); })
+      .catch(() => { if (active) setHasToken(false); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, []);
 
   return { hasToken, loading };

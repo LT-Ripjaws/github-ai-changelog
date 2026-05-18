@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SyncStatusBadge } from "@/components/app/SyncStatusBadge";
+import { SyncProgress } from "@/components/repos/SyncProgress";
 import { getRepo, getRepoStatus, syncRepo } from "@/lib/api";
 import type { Repo } from "@/lib/types";
 import { safeErrorMessage } from '@/lib/errors';
@@ -16,17 +17,32 @@ export function RepoSyncControl({ repoId, initialRepo }: RepoSyncControlProps) {
   const [repo, setRepo] = useState<Repo>(initialRepo);
   const [syncing, setSyncing] = useState(false);
   const mountedRef = useRef(true);
+  const pollTimeouts = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+  // Cancelable sleep so unmount cleanup can clear the pending timer instead of
+  // letting the poll loop run an extra iteration after the component is gone.
+  const sleep = useCallback(
+    (ms: number) =>
+      new Promise<void>((resolve) => {
+        const timer = setTimeout(() => {
+          pollTimeouts.current.delete(timer);
+          resolve();
+        }, ms);
+        pollTimeouts.current.add(timer);
+      }),
+    [],
+  );
 
   useEffect(() => {
+    const timers = pollTimeouts.current;
     return () => {
       mountedRef.current = false;
+      timers.forEach(clearTimeout);
+      timers.clear();
     };
   }, []);
 
   const isSyncing = repo.status === "syncing" || syncing;
-  const progressPercent = repo.totalCommitsToSync > 0
-    ? Math.min(100, Math.round((repo.totalCommitsSynced / repo.totalCommitsToSync) * 100))
-    : 0;
 
   const handleSync = useCallback(async () => {
     if (!mountedRef.current) return;
@@ -36,7 +52,7 @@ export function RepoSyncControl({ repoId, initialRepo }: RepoSyncControlProps) {
       const maxAttempts = 60;
 
       for (let i = 0; i < maxAttempts; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await sleep(2000);
         if (!mountedRef.current) return;
         const updated = await getRepoStatus(repoId);
         if (!mountedRef.current) return;
@@ -52,7 +68,7 @@ export function RepoSyncControl({ repoId, initialRepo }: RepoSyncControlProps) {
     } finally {
       if (mountedRef.current) setSyncing(false);
     }
-  }, [repoId]);
+  }, [repoId, sleep]);
 
   return (
     <div className="flex flex-col items-start gap-2 sm:items-end">
@@ -64,30 +80,11 @@ export function RepoSyncControl({ repoId, initialRepo }: RepoSyncControlProps) {
       </div>
 
       {isSyncing ? (
-        <div className="w-full min-w-[180px] sm:w-56" aria-live="polite">
-          {repo.totalCommitsToSync > 0 ? (
-            <>
-              <div className="mb-1 flex items-center justify-between text-xs text-text-tertiary tabular-nums">
-                <span>{repo.totalCommitsSynced} / {repo.totalCommitsToSync}</span>
-                <span>{progressPercent}%</span>
-              </div>
-              <div className="h-1.5 w-full rounded-full bg-surface-2">
-                <div
-                  className="h-1.5 rounded-full bg-brand-indigo transition-[width] duration-500"
-                  style={{ width: `${progressPercent}%` }}
-                  role="progressbar"
-                  aria-valuenow={progressPercent}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                />
-              </div>
-            </>
-          ) : (
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
-              <div className="h-1.5 w-1/3 rounded-full bg-brand-indigo animate-pulse" />
-            </div>
-          )}
-        </div>
+        <SyncProgress
+          synced={repo.totalCommitsSynced}
+          total={repo.totalCommitsToSync}
+          className="w-full min-w-[180px] sm:w-56"
+        />
       ) : null}
 
       {repo.status === "error" && repo.errorMessage ? (

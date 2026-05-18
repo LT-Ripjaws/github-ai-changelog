@@ -26,14 +26,17 @@ export default function AuthCallback() {
 
     // Cookie was set server-side by /auth/github/callback.
     // Just verify we can reach /auth/me, then redirect.
+    let active = true;
     getMe()
       .then(() => {
+        if (!active) return;
         window.history.replaceState(null, "", "/auth/callback");
         router.replace("/dashboard");
       })
       .catch(() => {
-        setError("No authentication response received. Please try signing in again.");
+        if (active) setError("No authentication response received. Please try signing in again.");
       });
+    return () => { active = false; };
   }, [router]);
 
   if (error) {

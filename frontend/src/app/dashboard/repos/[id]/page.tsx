@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SyncStatusBadge } from "@/components/app/SyncStatusBadge";
+import { SyncProgress } from "@/components/repos/SyncProgress";
 import { getReleasesServer, getRepoServer } from "@/lib/server-api";
 import type { PaginatedResponse, Release, Repo } from "@/lib/types";
 import { safeErrorMessage } from '@/lib/errors';
@@ -46,10 +47,6 @@ export default async function RepoOverviewPage({
     latestRelease = null;
   }
 
-  const progressPercent = repo.totalCommitsToSync > 0
-    ? Math.min(100, Math.round((repo.totalCommitsSynced / repo.totalCommitsToSync) * 100))
-    : 0;
-
   const workspaceLinks = [
     {
       label: "Commits",
@@ -91,33 +88,12 @@ export default async function RepoOverviewPage({
           </div>
 
           {(repo.status === "syncing" || repo.status === "pending") ? (
-            <div aria-live="polite">
-              {repo.totalCommitsToSync > 0 ? (
-                <>
-                  <div className="mb-1 flex items-center justify-between text-xs text-text-tertiary tabular-nums">
-                    <span>{repo.totalCommitsSynced} / {repo.totalCommitsToSync} commits</span>
-                    <span>{progressPercent}%</span>
-                  </div>
-                  <div className="h-1.5 w-full rounded-full bg-surface-2">
-                    <div
-                      className="h-1.5 rounded-full bg-brand-indigo transition-[width] duration-500"
-                      style={{ width: `${progressPercent}%` }}
-                      role="progressbar"
-                      aria-valuenow={progressPercent}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                    />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
-                    <div className="h-1.5 w-1/3 rounded-full bg-brand-indigo animate-pulse" />
-                  </div>
-                  <p className="mt-1 text-xs text-text-tertiary">Waiting for commit discovery…</p>
-                </>
-              )}
-            </div>
+            <SyncProgress
+              synced={repo.totalCommitsSynced}
+              total={repo.totalCommitsToSync}
+              unit="commits"
+              pendingLabel="Waiting for commit discovery…"
+            />
           ) : null}
 
           {repo.status === "error" && repo.errorMessage ? (

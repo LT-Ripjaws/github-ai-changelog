@@ -27,17 +27,27 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
   const mountedRef = useRef(true);
   const activePollers = useRef<Set<string>>(new Set());
   const pollTimeouts = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  // Mirror of `repos` so the action callbacks don't close over state and can
+  // stay referentially stable — otherwise RepoCard's memo() is defeated and
+  // every card re-renders on every 2s poll tick.
+  const reposRef = useRef(repos);
+  useEffect(() => {
+    reposRef.current = repos;
+  }, [repos]);
 
   // Cancelable sleep: timer is tracked so unmount cleanup can clear it,
   // preventing the poll loop from running an extra iteration after unmount.
-  const sleep = (ms: number) =>
-    new Promise<void>((resolve) => {
-      const timer = setTimeout(() => {
-        pollTimeouts.current.delete(timer);
-        resolve();
-      }, ms);
-      pollTimeouts.current.add(timer);
-    });
+  const sleep = useCallback(
+    (ms: number) =>
+      new Promise<void>((resolve) => {
+        const timer = setTimeout(() => {
+          pollTimeouts.current.delete(timer);
+          resolve();
+        }, ms);
+        pollTimeouts.current.add(timer);
+      }),
+    [],
+  );
 
   useEffect(() => {
     const timers = pollTimeouts.current;
@@ -68,13 +78,7 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
     if (initialRepos.length === 0) fetchRepos();
   }, [initialRepos.length, fetchRepos]);
 
-  const handleConnect = async (fullName: string) => {
-    const newRepo = await createRepo(fullName);
-    setRepos((prev) => [newRepo, ...prev]);
-    pollRepoUntilReady(newRepo.id);
-  };
-
-  const pollRepoUntilReady = async (repoId: string) => {
+  const pollRepoUntilReady = useCallback(async (repoId: string) => {
     // Dedup: a connect-then-sync or rapid Sync clicks must not spawn
     // overlapping pollers for the same repo.
     if (activePollers.current.has(repoId)) return;
@@ -107,10 +111,16 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
     } finally {
       activePollers.current.delete(repoId);
     }
-  };
+  }, [sleep]);
 
-  const handleSync = async (id: string) => {
-    const repo = repos.find((item) => item.id === id);
+  const handleConnect = useCallback(async (fullName: string) => {
+    const newRepo = await createRepo(fullName);
+    setRepos((prev) => [newRepo, ...prev]);
+    pollRepoUntilReady(newRepo.id);
+  }, [pollRepoUntilReady]);
+
+  const handleSync = useCallback(async (id: string) => {
+    const repo = reposRef.current.find((item) => item.id === id);
 
     setError(null);
     setRepos((prev) => prev.map((item) => (
@@ -133,12 +143,12 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
       setSyncingRepos((prev) => { const next = { ...prev }; delete next[id]; return next; });
       throw err;
     }
-  };
+  }, [pollRepoUntilReady]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     await deleteRepo(id);
     setRepos((prev) => prev.filter((repo) => repo.id !== id));
-  };
+  }, []);
 
   if (loading && initialRepos.length === 0) {
     return (
