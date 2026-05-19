@@ -4,6 +4,41 @@ RepoNarrate is a full-stack AI changelog intelligence app. It connects to a GitH
 
 In simple terms: connect a repo, let the backend sync it, then review clean AI-generated explanations of what changed.
 
+## Preview
+
+<p align="center">
+  <img src="./screenshots/banner.jpg" alt="RepoNarrate landing hero preview" width="100%" />
+</p>
+
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><strong>Landing Page</strong></td>
+    <td align="center"><strong>Repository Dashboard</strong></td>
+  </tr>
+  <tr>
+    <td><img src="./screenshots/landing.jpg" alt="RepoNarrate landing page" width="100%" /></td>
+    <td><img src="./screenshots/dashboard.jpg" alt="RepoNarrate repository dashboard" width="100%" /></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Repository Workspace</strong></td>
+    <td align="center"><strong>Commit Intelligence</strong></td>
+  </tr>
+  <tr>
+    <td><img src="./screenshots/repo.jpg" alt="RepoNarrate repository workspace overview" width="100%" /></td>
+    <td><img src="./screenshots/commits.jpg" alt="RepoNarrate commit intelligence list" width="100%" /></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>AI Commit Summary</strong></td>
+    <td align="center"><strong>Analytics</strong></td>
+  </tr>
+  <tr>
+    <td><img src="./screenshots/ai_summary.jpg" alt="RepoNarrate AI changelog and diff summary" width="100%" /></td>
+    <td><img src="./screenshots/analytics.jpg" alt="RepoNarrate analytics dashboard" width="100%" /></td>
+  </tr>
+</table>
+
 ## Features
 
 - GitHub OAuth login
