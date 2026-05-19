@@ -18,6 +18,10 @@ interface DashboardClientProps {
   initialRepos: Repo[];
 }
 
+function isRepoInFlight(repo: Repo) {
+  return repo.status === "pending" || repo.status === "syncing";
+}
+
 export default function DashboardClient({ initialRepos }: DashboardClientProps) {
   const [repos, setRepos] = useState<Repo[]>(initialRepos);
   const [loading, setLoading] = useState(false);
@@ -129,6 +133,21 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
       }
     }
   }, [sleep]);
+
+  useEffect(() => {
+    const resumeInFlightPollers = () => {
+      for (const repo of reposRef.current) {
+        if (isRepoInFlight(repo)) {
+          void pollRepoUntilReady(repo.id);
+        }
+      }
+    };
+
+    resumeInFlightPollers();
+    const interval = setInterval(resumeInFlightPollers, 2000);
+
+    return () => clearInterval(interval);
+  }, [pollRepoUntilReady]);
 
   const handleConnect = useCallback(async (fullName: string) => {
     const newRepo = await createRepo(fullName);
