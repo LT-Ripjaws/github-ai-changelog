@@ -50,7 +50,7 @@ export class AiService {
   // Per-provider rate limiters
   private lastKiloCall = 0;
   private lastGeminiCall = 0;
-  private readonly kiloMinInterval = 1500; // ~35 RPM
+  private readonly kiloMinInterval = 400; // ~150 RPM — safe for free tier
   private readonly geminiMinInterval = 800; // ~75 RPM
 
   constructor(private config: ConfigService) {
@@ -97,8 +97,7 @@ export class AiService {
     return match ? Math.ceil(parseFloat(match[1]) * 1000) : 15000;
   }
 
-  private async generateText(prompt: string, maxAttempts = 4): Promise<string> {
-    // maxAttempts = initial try + retries. Default 4 = 1 initial + 3 retries.
+  private async generateText(prompt: string, maxAttempts = 5): Promise<string> {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         await this.throttleKilo();
@@ -107,14 +106,29 @@ export class AiService {
           messages: [{ role: 'user', content: prompt }],
           max_tokens: 500,
         });
-        return (result.choices[0]?.message?.content ?? '').trim();
+        // Some models (reasoning models) put output in `reasoning` instead of `content`
+        const msg = result.choices[0]?.message as unknown as Record<string, unknown> | undefined;
+        const text = ((msg?.content ?? msg?.reasoning ?? '') as string).trim();
+        if (!text && attempt < maxAttempts - 1) {
+          const delay = 3000 * (attempt + 1);
+          this.logger.warn(
+            `Kilo returned empty response, retrying in ${delay / 1000}s (attempt ${attempt + 1}/${maxAttempts})...`,
+          );
+          await this.sleep(delay);
+          continue;
+        }
+        return text;
       } catch (err: unknown) {
         const providerError = getProviderError(err);
-        const isRateLimit = providerError.status === 429 || providerError.status === 503;
-        if (isRateLimit && attempt < maxAttempts - 1) {
+        const isRetryable =
+          providerError.status === 429 ||
+          providerError.status === 500 ||
+          providerError.status === 502 ||
+          providerError.status === 503;
+        if (isRetryable && attempt < maxAttempts - 1) {
           const delay = this.getRetryDelay(err) * (attempt + 1);
           this.logger.warn(
-            `Kilo rate limited (${providerError.status}), waiting ${delay / 1000}s (attempt ${attempt + 1}/${maxAttempts})...`,
+            `Kilo error (${providerError.status}), waiting ${delay / 1000}s (attempt ${attempt + 1}/${maxAttempts})...`,
           );
           await this.sleep(delay);
         } else {
@@ -175,7 +189,8 @@ export class AiService {
         .replace('{message}', message)
         .replace('{filesChanged}', String(filesChanged))
         .replace('{diffSummary}', diffSummary || message);
-      return await this.generateText(prompt);
+      const result = await this.generateText(prompt);
+      return result || message; // fall back to raw commit message if AI returns empty
     } catch (err: unknown) {
       this.logger.error('Changelog generation failed:', getProviderError(err).message);
       return message;

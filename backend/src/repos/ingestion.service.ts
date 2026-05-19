@@ -56,33 +56,45 @@ export class IngestionService {
         return;
       }
 
-      // Skip if already in DB
+      // Check if already in DB
       const existing = await this.commitsRepo.findOne({ where: { repoId: repo.id, sha } });
-      if (existing) {
+
+      // Skip if commit exists AND has AI fields populated
+      if (existing && existing.aiChangelog && existing.diffSummary) {
         processedShas.set(sha, existing.id);
         continue;
       }
 
-      let filesChanged = 0, additions = 0, deletions = 0, diffText = '';
+      // Re-process if AI fields are empty
+      if (existing) {
+        this.logger.log(`Re-processing AI fields for commit ${sha.slice(0, 8)} (previously empty)`);
+      }
+
+      let filesChanged = existing?.filesChanged ?? 0;
+      let additions = existing?.additions ?? 0;
+      let deletions = existing?.deletions ?? 0;
+      let diffText = '';
 
       try {
         const detail = await this.githubService.getCommitDetail(owner, repoName, sha, token);
-        filesChanged = detail.files?.length ?? 0;
-        additions = detail.stats?.additions ?? 0;
-        deletions = detail.stats?.deletions ?? 0;
+        if (!existing) {
+          filesChanged = detail.files?.length ?? 0;
+          additions = detail.stats?.additions ?? 0;
+          deletions = detail.stats?.deletions ?? 0;
+        }
         diffText = (detail.files ?? [])
           .slice(0, 8)
           .map((file) => `--- ${file.filename}\n${file.patch ?? ''}`)
           .join('\n\n')
           .slice(0, 3500);
 
-        await this.sleep(1500); // rate limit buffer between commit detail fetches
+        await this.sleep(300); // rate limit buffer between commit detail fetches
       } catch (err: unknown) {
         this.logger.warn(`Could not fetch diff for ${sha}: ${getErrorMessage(err)}`);
       }
 
-      // AI processing (all wrapped in try/catch inside aiService already so)
-      const diffSummary = diffText ? await this.aiService.generateDiffSummary(diffText) : '';
+      // AI processing (all wrapped in try/catch inside aiService already)
+      const diffSummary = diffText ? await this.aiService.generateDiffSummary(diffText) : (existing?.diffSummary ?? '');
       const category = await this.aiService.categorizeCommit(rawCommit.commit.message, diffSummary);
       const aiChangelog = await this.aiService.generateChangelog(rawCommit.commit.message, filesChanged, diffSummary);
       const embedding = await this.aiService.generateEmbedding(rawCommit.commit.message + ' ' + diffSummary);
@@ -94,36 +106,51 @@ export class IngestionService {
         return;
       }
 
-      // Insert commit (wrapped in try-catch for FK constraint if repo was deleted mid-flight)
       let commit;
-      try {
-        commit = await this.commitsRepo.save({
-          repoId: repo.id,
-          sha,
-          message: rawCommit.commit.message,
-          authorName: rawCommit.commit.author?.name,
-          authorEmail: rawCommit.commit.author?.email,
-          authorGithubLogin: rawCommit.author?.login,
-          diffSummary,
-          aiChangelog,
-          category,
-          filesChanged,
-          additions,
-          deletions,
-          isMergeCommit: (rawCommit.parents?.length ?? 0) > 1,
-          committedAt: new Date(rawCommit.commit.committer?.date ?? rawCommit.commit.author?.date),
-        });
-      } catch (err: unknown) {
-        if (getErrorMessage(err).includes('violates foreign key constraint')) {
-          this.logger.warn(`Repo ${fullName} was deleted during sync (FK constraint), stopping.`);
-          return;
+
+      if (existing) {
+        // Update existing commit with fresh AI fields
+        try {
+          await this.commitsRepo.update(existing.id, { diffSummary, aiChangelog, category });
+          commit = { ...existing, diffSummary, aiChangelog, category };
+        } catch (err: unknown) {
+          if (getErrorMessage(err).includes('violates foreign key constraint')) {
+            this.logger.warn(`Repo ${fullName} was deleted during sync (FK constraint), stopping.`);
+            return;
+          }
+          throw err;
         }
-        throw err;
+      } else {
+        // Insert new commit
+        try {
+          commit = await this.commitsRepo.save({
+            repoId: repo.id,
+            sha,
+            message: rawCommit.commit.message,
+            authorName: rawCommit.commit.author?.name,
+            authorEmail: rawCommit.commit.author?.email,
+            authorGithubLogin: rawCommit.author?.login,
+            diffSummary,
+            aiChangelog,
+            category,
+            filesChanged,
+            additions,
+            deletions,
+            isMergeCommit: (rawCommit.parents?.length ?? 0) > 1,
+            committedAt: new Date(rawCommit.commit.committer?.date ?? rawCommit.commit.author?.date),
+          });
+        } catch (err: unknown) {
+          if (getErrorMessage(err).includes('violates foreign key constraint')) {
+            this.logger.warn(`Repo ${fullName} was deleted during sync (FK constraint), stopping.`);
+            return;
+          }
+          throw err;
+        }
       }
 
       processedShas.set(sha, commit.id);
 
-      // Insert embedding via raw SQL
+      // Insert/update embedding via raw SQL
       if (embedding.length > 0) {
         const vectorStr = `[${embedding.join(',')}]`;
         await this.dataSource.query(
@@ -134,8 +161,10 @@ export class IngestionService {
         );
       }
 
-      // Update sync progress counter
-      await this.reposRepo.increment({ id: repo.id }, 'totalCommitsSynced', 1);
+      // Update sync progress counter (only for new commits)
+      if (!existing) {
+        await this.reposRepo.increment({ id: repo.id }, 'totalCommitsSynced', 1);
+      }
     }
 
     // === STEP 2: Fetch + process releases ===
@@ -172,7 +201,7 @@ export class IngestionService {
             if (commitId) releaseCommitIds.push(commitId);
           }
 
-          await this.sleep(1500); // rate limit buffer between release comparisons
+          await this.sleep(300); // rate limit buffer between release comparisons
         } catch (err: unknown) {
           this.logger.warn(`Could not compare commits for ${ghRelease.tag_name}: ${getErrorMessage(err)}`);
         }
@@ -217,7 +246,7 @@ export class IngestionService {
         }
       });
 
-      await this.sleep(1500); // rate limit buffer between release processing
+      await this.sleep(300); // rate limit buffer between release processing
     }
 
     // === STEP 3: Mark done ===

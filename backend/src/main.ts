@@ -220,14 +220,17 @@ async function bootstrap() {
   app.getHttpAdapter().getInstance().set('trust proxy', nodeEnv === 'production' ? 1 : false);
 
   // === Rate limiting (defense in depth) ===
-  // 100 req/5min per IP for general API, generous enough for dev tool
-  // Excludes /health so load balancer checks don't throttle
+  // 300 req/5min per IP — generous enough for dev tool + frontend polling.
+  // Excludes /health (load balancer) and status-polling endpoints so the
+  // frontend's 2-second poll loop can't exhaust the budget during a sync.
   const limiter = rateLimit({
     windowMs: 5 * 60 * 1000,
-    max: 100,
+    max: 300,
     standardHeaders: true,
     legacyHeaders: false,
-    skip: (req) => req.path === '/health',
+    skip: (req) =>
+      req.path === '/health' ||
+      /^\/repos\/[^/]+\/status$/.test(req.path),
     message: { message: 'Too many requests — please slow down.' },
   });
   app.use(limiter);
