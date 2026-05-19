@@ -14,11 +14,11 @@ function Skeleton({
   ...props
 }: SkeletonProps) {
   const variantClasses = {
-    default: "bg-muted animate-pulse-subtle",
-    card: "bg-muted animate-pulse-subtle rounded-md",
-    text: "bg-muted animate-pulse-subtle rounded-sm",
-    avatar: "bg-muted animate-pulse-subtle rounded-full",
-    button: "bg-muted animate-pulse-subtle rounded",
+    default: "bg-surface-2 skeleton-shimmer",
+    card: "bg-surface-2 skeleton-shimmer rounded-lg",
+    text: "bg-surface-2 skeleton-shimmer rounded-sm",
+    avatar: "bg-surface-2 skeleton-shimmer rounded-full",
+    button: "bg-surface-2 skeleton-shimmer rounded-md",
   };
 
   return (
@@ -87,7 +87,7 @@ function SkeletonChart() {
           <Skeleton
             key={i}
             variant="default"
-            className="flex-1 animate-pulse-subtle"
+            className="flex-1 rounded-sm"
             style={{ height }}
           />
         ))}

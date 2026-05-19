@@ -17,10 +17,9 @@ export function RepoSyncControl({ repoId, initialRepo }: RepoSyncControlProps) {
   const [repo, setRepo] = useState<Repo>(initialRepo);
   const [syncing, setSyncing] = useState(false);
   const mountedRef = useRef(true);
-  const pollTimeouts = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const lifecycleRef = useRef(0);
+  const pollTimeouts = useRef<Map<ReturnType<typeof setTimeout>, () => void>>(new Map());
 
-  // Cancelable sleep so unmount cleanup can clear the pending timer instead of
-  // letting the poll loop run an extra iteration after the component is gone.
   const sleep = useCallback(
     (ms: number) =>
       new Promise<void>((resolve) => {
@@ -28,47 +27,73 @@ export function RepoSyncControl({ repoId, initialRepo }: RepoSyncControlProps) {
           pollTimeouts.current.delete(timer);
           resolve();
         }, ms);
-        pollTimeouts.current.add(timer);
+        pollTimeouts.current.set(timer, resolve);
       }),
     [],
   );
 
   useEffect(() => {
+    mountedRef.current = true;
+    lifecycleRef.current += 1;
+
     const timers = pollTimeouts.current;
+
     return () => {
       mountedRef.current = false;
-      timers.forEach(clearTimeout);
+      lifecycleRef.current += 1;
+      timers.forEach((resolve, timer) => {
+        clearTimeout(timer);
+        resolve();
+      });
       timers.clear();
     };
   }, []);
 
-  const isSyncing = repo.status === "syncing" || syncing;
+  const isSyncing = repo.status === "syncing" || repo.status === "pending" || syncing;
+
+  // Poll until the repo finishes syncing. Shared by handleSync and the
+  // auto-resume effect so the progress bar always updates in real time.
+  const pollUntilDone = useCallback(async (token: number) => {
+    const maxAttempts = 150; // ~5 minutes at 2s intervals
+
+    for (let i = 0; i < maxAttempts; i++) {
+      await sleep(2000);
+      if (!mountedRef.current || lifecycleRef.current !== token) return;
+      const updated = await getRepoStatus(repoId);
+      if (!mountedRef.current || lifecycleRef.current !== token) return;
+      setRepo((prev) => ({ ...prev, ...updated }));
+      if (updated.status === "ready" || updated.status === "error") break;
+    }
+
+    if (!mountedRef.current || lifecycleRef.current !== token) return;
+    const final = await getRepo(repoId);
+    if (mountedRef.current && lifecycleRef.current === token) setRepo(final);
+  }, [repoId, sleep]);
+
+  // Auto-resume polling if the repo is already syncing when the page loads
+  useEffect(() => {
+    if (initialRepo.status === "syncing" || initialRepo.status === "pending") {
+      const token = lifecycleRef.current;
+      setSyncing(true);
+      pollUntilDone(token).finally(() => {
+        if (mountedRef.current && lifecycleRef.current === token) setSyncing(false);
+      });
+    }
+  }, [initialRepo.status, pollUntilDone]);
 
   const handleSync = useCallback(async () => {
     if (!mountedRef.current) return;
+    const token = lifecycleRef.current;
     setSyncing(true);
     try {
       await syncRepo(repoId);
-      const maxAttempts = 60;
-
-      for (let i = 0; i < maxAttempts; i++) {
-        await sleep(2000);
-        if (!mountedRef.current) return;
-        const updated = await getRepoStatus(repoId);
-        if (!mountedRef.current) return;
-        setRepo((prev) => ({ ...prev, ...updated }));
-        if (updated.status === "ready" || updated.status === "error") break;
-      }
-
-      if (!mountedRef.current) return;
-      const final = await getRepo(repoId);
-      if (mountedRef.current) setRepo(final);
+      await pollUntilDone(token);
     } catch {
       // Keep the current repo state; the backend exposes detailed errors in status polling.
     } finally {
-      if (mountedRef.current) setSyncing(false);
+      if (mountedRef.current && lifecycleRef.current === token) setSyncing(false);
     }
-  }, [repoId, sleep]);
+  }, [repoId, pollUntilDone]);
 
   return (
     <div className="flex flex-col items-start gap-2 sm:items-end">

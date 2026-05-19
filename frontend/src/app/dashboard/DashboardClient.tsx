@@ -25,8 +25,9 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [syncingRepos, setSyncingRepos] = useState<Record<string, { synced: number; total: number }>>({});
   const mountedRef = useRef(true);
-  const activePollers = useRef<Set<string>>(new Set());
-  const pollTimeouts = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const lifecycleRef = useRef(0);
+  const activePollers = useRef<Map<string, number>>(new Map());
+  const pollTimeouts = useRef<Map<ReturnType<typeof setTimeout>, () => void>>(new Map());
   // Mirror of `repos` so the action callbacks don't close over state and can
   // stay referentially stable — otherwise RepoCard's memo() is defeated and
   // every card re-renders on every 2s poll tick.
@@ -35,8 +36,6 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
     reposRef.current = repos;
   }, [repos]);
 
-  // Cancelable sleep: timer is tracked so unmount cleanup can clear it,
-  // preventing the poll loop from running an extra iteration after unmount.
   const sleep = useCallback(
     (ms: number) =>
       new Promise<void>((resolve) => {
@@ -44,17 +43,27 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
           pollTimeouts.current.delete(timer);
           resolve();
         }, ms);
-        pollTimeouts.current.add(timer);
+        pollTimeouts.current.set(timer, resolve);
       }),
     [],
   );
 
   useEffect(() => {
+    mountedRef.current = true;
+    lifecycleRef.current += 1;
+
     const timers = pollTimeouts.current;
+    const pollers = activePollers.current;
+
     return () => {
       mountedRef.current = false;
-      timers.forEach(clearTimeout);
+      lifecycleRef.current += 1;
+      timers.forEach((resolve, timer) => {
+        clearTimeout(timer);
+        resolve();
+      });
       timers.clear();
+      pollers.clear();
     };
   }, []);
 
@@ -79,37 +88,45 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
   }, [initialRepos.length, fetchRepos]);
 
   const pollRepoUntilReady = useCallback(async (repoId: string) => {
-    // Dedup: a connect-then-sync or rapid Sync clicks must not spawn
-    // overlapping pollers for the same repo.
     if (activePollers.current.has(repoId)) return;
-    activePollers.current.add(repoId);
+    const lifecycle = lifecycleRef.current;
+    activePollers.current.set(repoId, lifecycle);
+    const isCurrentLifecycle = () => mountedRef.current && lifecycleRef.current === lifecycle;
+    let consecutiveFailures = 0;
     try {
-      const maxAttempts = 60;
+      const maxAttempts = 150; // ~5 minutes at 2s intervals
       for (let i = 0; i < maxAttempts; i++) {
-        await sleep(2000);
-        if (!mountedRef.current) return;
+        if (!isCurrentLifecycle()) return;
         try {
           const updated = await getRepoStatus(repoId);
-          if (!mountedRef.current) return;
+          consecutiveFailures = 0;
+          if (!isCurrentLifecycle()) return;
           setRepos((prev) => prev.map((r) => (r.id === repoId ? { ...r, ...updated } : r)));
           setSyncingRepos((prev) => ({ ...prev, [repoId]: { synced: updated.totalCommitsSynced, total: updated.totalCommitsToSync } }));
           if (updated.status === 'ready' || updated.status === 'error') {
             await sleep(1000);
-            if (!mountedRef.current) return;
+            if (!isCurrentLifecycle()) return;
             const final = await getRepoStatus(repoId);
-            if (!mountedRef.current) return;
+            if (!isCurrentLifecycle()) return;
             setRepos((prev) => prev.map((r) => (r.id === repoId ? { ...r, ...final } : r)));
             setSyncingRepos((prev) => { const next = { ...prev }; delete next[repoId]; return next; });
             break;
           }
         } catch {
-          if (!mountedRef.current) return;
-          setSyncingRepos((prev) => { const next = { ...prev }; delete next[repoId]; return next; });
-          break;
+          consecutiveFailures += 1;
+          if (!isCurrentLifecycle()) return;
+          if (consecutiveFailures >= 5) {
+            setSyncingRepos((prev) => { const next = { ...prev }; delete next[repoId]; return next; });
+            break;
+          }
         }
+        await sleep(2000);
+        if (!isCurrentLifecycle()) return;
       }
     } finally {
-      activePollers.current.delete(repoId);
+      if (activePollers.current.get(repoId) === lifecycle) {
+        activePollers.current.delete(repoId);
+      }
     }
   }, [sleep]);
 

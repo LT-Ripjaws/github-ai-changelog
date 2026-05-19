@@ -58,8 +58,8 @@ export default async function CommitDetailPage({
             <span>{formatDate(commit.committedAt, { withWeekday: true, withTime: true })}</span>
           </div>
           <div className="flex items-center gap-3 tabular-nums">
-            <span className="text-emerald-400">+{commit.additions}</span>
-            <span className="text-red-400">-{commit.deletions}</span>
+            <span className="text-cat-feature">+{commit.additions}</span>
+            <span className="text-cat-breaking">-{commit.deletions}</span>
             <span>{commit.filesChanged} files changed</span>
           </div>
           <code className="text-xs bg-surface-2 px-1.5 py-0.5 rounded font-mono">{commit.sha}</code>

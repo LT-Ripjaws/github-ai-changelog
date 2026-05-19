@@ -10,8 +10,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-display)", "IBM Plex Sans", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
-        mono: ["var(--font-mono)", "IBM Plex Mono", "ui-monospace", "SFMono-Regular", "monospace"],
+        sans: ["var(--font-display)", "Geist", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+        mono: ["var(--font-mono)", "Geist Mono", "ui-monospace", "SFMono-Regular", "monospace"],
       },
       colors: {
         background: "hsl(var(--background))",
@@ -42,11 +42,28 @@ const config: Config = {
         "border-standard": "hsl(var(--border-standard))",
         "success-green": "hsl(var(--success-green))",
         "success-emerald": "hsl(var(--success-emerald))",
+        "cat-breaking": "hsl(var(--cat-breaking))",
+        "cat-feature": "hsl(var(--cat-feature))",
+        "cat-fix": "hsl(var(--cat-fix))",
+        "cat-chore": "hsl(var(--cat-chore))",
+        "cat-docs": "hsl(var(--cat-docs))",
+        "cat-refactor": "hsl(var(--cat-refactor))",
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        sm: "var(--radius-sm)",
+        md: "var(--radius-md)",
+        lg: "var(--radius-lg)",
+        xl: "var(--radius-xl)",
+      },
+      boxShadow: {
+        "elevation-1": "var(--elevation-1)",
+        "elevation-2": "var(--elevation-2)",
+        "elevation-3": "var(--elevation-3)",
+        "elevation-4": "var(--elevation-4)",
+      },
+      transitionTimingFunction: {
+        "out-quint": "var(--ease-out-quint)",
+        spring: "var(--ease-spring)",
       },
       keyframes: {
         "fade-in-up": {

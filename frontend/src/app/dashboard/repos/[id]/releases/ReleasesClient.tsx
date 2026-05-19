@@ -28,10 +28,10 @@ function ChangeSection({
   if (items.length === 0) return null;
 
   const toneClasses = {
-    red: "text-red-400 border-red-500/30",
-    emerald: "text-emerald-400 border-emerald-500/30",
-    amber: "text-amber-400 border-amber-500/30",
-    slate: "text-slate-400 border-slate-500/30",
+    red: "text-cat-breaking border-cat-breaking/30",
+    emerald: "text-cat-feature border-cat-feature/30",
+    amber: "text-cat-fix border-cat-fix/30",
+    slate: "text-cat-chore border-cat-chore/30",
   }[tone];
 
   const borderClass = toneClasses.split(" ")[1];
@@ -60,8 +60,12 @@ export default function ReleasesClient({ repoId, initialData }: ReleasesClientPr
   const [page, setPage] = useState(1);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  const fetchReleases = useCallback(async (p: number) => {
-    setLoading(true);
+  const fetchReleases = useCallback(async (
+    p: number,
+    options: { showLoading?: boolean } = {},
+  ) => {
+    const showLoading = options.showLoading ?? true;
+    if (showLoading) setLoading(true);
     setError(null);
     try {
       const res = await getReleases(repoId, { page: p, limit: 20 });
@@ -75,14 +79,8 @@ export default function ReleasesClient({ repoId, initialData }: ReleasesClientPr
   }, [repoId]);
 
   useEffect(() => {
-    if (page === 1) {
-      setReleases(initialData.releases);
-      setMeta(initialData.meta);
-      return;
-    }
-
-    void fetchReleases(page);
-  }, [fetchReleases, initialData.meta, initialData.releases, page]);
+    void fetchReleases(page, { showLoading: page !== 1 });
+  }, [fetchReleases, page]);
 
   const toggleExpand = (id: string) => {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -123,7 +121,7 @@ export default function ReleasesClient({ repoId, initialData }: ReleasesClientPr
                           <div className="flex flex-wrap items-center gap-3">
                             <Link
                               href={detailHref}
-                              prefetch
+                              prefetch={false}
                               className="text-lg font-medium text-text-primary transition-colors hover:text-brand-indigo focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-indigo/60 font-feature-settings-cv01-ss03"
                             >
                               {release.tagName}
@@ -145,17 +143,17 @@ export default function ReleasesClient({ repoId, initialData }: ReleasesClientPr
 
                         <div className="flex shrink-0 flex-wrap items-center gap-2">
                           {release.breakingChanges?.length > 0 ? (
-                            <Badge className="border-red-500/30 bg-red-500/15 text-red-400 tabular-nums">
+                            <Badge className="border-cat-breaking/30 bg-cat-breaking/15 text-cat-breaking tabular-nums">
                               {release.breakingChanges.length} breaking
                             </Badge>
                           ) : null}
                           {release.features?.length > 0 ? (
-                            <Badge className="border-emerald-500/30 bg-emerald-500/15 text-emerald-400 tabular-nums">
+                            <Badge className="border-cat-feature/30 bg-cat-feature/15 text-cat-feature tabular-nums">
                               {release.features.length} features
                             </Badge>
                           ) : null}
                           {release.fixes?.length > 0 ? (
-                            <Badge className="border-amber-500/30 bg-amber-500/15 text-amber-400 tabular-nums">
+                            <Badge className="border-cat-fix/30 bg-cat-fix/15 text-cat-fix tabular-nums">
                               {release.fixes.length} fixes
                             </Badge>
                           ) : null}
@@ -169,7 +167,7 @@ export default function ReleasesClient({ repoId, initialData }: ReleasesClientPr
                       </p>
                       <div className="flex flex-wrap gap-2">
                         <Button asChild variant="outline" size="sm" className="btn-linear-subtle">
-                          <Link href={detailHref} prefetch>
+                          <Link href={detailHref} prefetch={false}>
                             Open detail
                           </Link>
                         </Button>

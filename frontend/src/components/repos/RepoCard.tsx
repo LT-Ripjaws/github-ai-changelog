@@ -55,9 +55,13 @@ export const RepoCard = memo(function RepoCard({ repo, syncProgress, onSync, onD
   }, [menuOpen]);
 
   const overviewHref = `/dashboard/repos/${repo.id}`;
-  const isSyncing = syncProgress !== null;
-  const displayCommits = isSyncing ? syncProgress.synced : repo.totalCommitsSynced;
-  const displayTotal = isSyncing ? syncProgress.total : repo.totalCommitsToSync || 0;
+  // Reflect a server-known in-flight sync immediately (before the dashboard's
+  // first poll tick), so the badge/bar/disabled-button are correct even for
+  // syncs this component didn't start.
+  const inFlight = repo.status === "pending" || repo.status === "syncing";
+  const isSyncing = syncProgress !== null || inFlight;
+  const displayCommits = syncProgress ? syncProgress.synced : repo.totalCommitsSynced;
+  const displayTotal = syncProgress ? syncProgress.total : repo.totalCommitsToSync || 0;
 
   const handleSync = async () => {
     setSyncing(true);
@@ -92,7 +96,7 @@ export const RepoCard = memo(function RepoCard({ repo, syncProgress, onSync, onD
         href={overviewHref}
         prefetch
         aria-label={`Open ${repo.fullName} overview`}
-        className="block rounded-t-[12px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-indigo/60"
+        className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-indigo/60"
       >
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between gap-3">
@@ -198,7 +202,7 @@ export const RepoCard = memo(function RepoCard({ repo, syncProgress, onSync, onD
               {menuOpen ? (
                 <div
                   role="menu"
-                  className="absolute right-0 z-20 mt-2 w-44 rounded-md border border-border-standard bg-card p-1 shadow-xl shadow-black/30"
+                  className="absolute right-0 z-20 mt-2 w-44 rounded-md border border-white/[0.08] bg-card p-1 shadow-elevation-3"
                 >
                   <button
                     type="button"

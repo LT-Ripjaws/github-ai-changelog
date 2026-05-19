@@ -15,13 +15,14 @@ import {
 
 const CATEGORY_ORDER = ["breaking", "feature", "fix", "docs", "refactor", "chore"];
 
+// Matches the bespoke --cat-* design tokens (recharts needs concrete colors).
 const COLORS: Record<string, string> = {
-  breaking: "#ef4444",
-  feature: "#10b981",
-  fix: "#f59e0b",
-  chore: "#64748b",
-  docs: "#3b82f6",
-  refactor: "#a855f7",
+  breaking: "hsl(4 70% 63%)",
+  feature: "hsl(158 52% 52%)",
+  fix: "hsl(38 74% 60%)",
+  chore: "hsl(230 9% 62%)",
+  docs: "hsl(214 68% 64%)",
+  refactor: "hsl(264 58% 70%)",
 };
 
 interface CategoryBarChartProps {

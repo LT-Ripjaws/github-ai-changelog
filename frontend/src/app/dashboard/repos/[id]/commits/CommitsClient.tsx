@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { getCommits, searchCommits } from "@/lib/api";
 import type { Commit, SearchResult } from "@/lib/types";
@@ -37,7 +37,7 @@ function CommitRow({ repoId, commit }: CommitRowProps) {
   return (
     <Link
       href={`/dashboard/repos/${repoId}/commits/${commit.sha}`}
-      prefetch
+      prefetch={false}
       className="block card-linear p-4 transition-colors hover:border-brand-indigo/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-indigo/60"
     >
       <div className="flex items-start justify-between gap-4">
@@ -69,8 +69,8 @@ function CommitRow({ repoId, commit }: CommitRowProps) {
         <div className="flex flex-col items-end gap-1 whitespace-nowrap text-right text-xs text-text-tertiary tabular-nums">
           <span>{formatDate(commit.committedAt)}</span>
           <div className="flex gap-2">
-            <span className="text-emerald-400">+{commit.additions}</span>
-            <span className="text-red-400">-{commit.deletions}</span>
+            <span className="text-cat-feature">+{commit.additions}</span>
+            <span className="text-cat-breaking">-{commit.deletions}</span>
             <span>{commit.filesChanged}f</span>
           </div>
         </div>
@@ -88,7 +88,7 @@ function SearchResultRow({ repoId, result }: SearchResultRowProps) {
   return (
     <Link
       href={`/dashboard/repos/${repoId}/commits/${result.sha}`}
-      prefetch
+      prefetch={false}
       className="block card-linear p-4 transition-colors hover:border-brand-indigo/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-indigo/60"
     >
       <div className="flex items-start justify-between gap-4">
@@ -118,8 +118,8 @@ function SearchResultRow({ repoId, result }: SearchResultRowProps) {
         <div className="flex flex-col items-end gap-1 whitespace-nowrap text-right text-xs text-text-tertiary tabular-nums">
           <span>{formatDate(result.committedAt)}</span>
           <div className="flex gap-2">
-            <span className="text-emerald-400">+{result.additions}</span>
-            <span className="text-red-400">-{result.deletions}</span>
+            <span className="text-cat-feature">+{result.additions}</span>
+            <span className="text-cat-breaking">-{result.deletions}</span>
             <span>{result.filesChanged}f</span>
           </div>
         </div>
@@ -143,8 +143,6 @@ export default function CommitsClient({ repoId, initialData }: CommitsClientProp
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [isSearchMode, setIsSearchMode] = useState(false);
-  const initialDataRef = useRef(initialData);
-  initialDataRef.current = initialData;
 
   const resetSearchMode = useCallback((clearInput = false) => {
     setIsSearchMode(false);
@@ -154,8 +152,15 @@ export default function CommitsClient({ repoId, initialData }: CommitsClientProp
     if (clearInput) setSearchInput("");
   }, []);
 
-  const fetchCommits = useCallback(async (p: number, cat: string, from: string, to: string) => {
-    setLoading(true);
+  const fetchCommits = useCallback(async (
+    p: number,
+    cat: string,
+    from: string,
+    to: string,
+    options: { showLoading?: boolean } = {},
+  ) => {
+    const showLoading = options.showLoading ?? true;
+    if (showLoading) setLoading(true);
     setError(null);
     try {
       const res = await getCommits(repoId, {
@@ -177,15 +182,8 @@ export default function CommitsClient({ repoId, initialData }: CommitsClientProp
   useEffect(() => {
     if (isSearchMode) return;
 
-    if (page === 1 && !category && !fromDate && !toDate) {
-      setCommits(initialDataRef.current.commits);
-      setMeta(initialDataRef.current.meta);
-      setLoading(false);
-      setError(null);
-      return;
-    }
-
-    void fetchCommits(page, category, fromDate, toDate);
+    const defaultView = page === 1 && !category && !fromDate && !toDate;
+    void fetchCommits(page, category, fromDate, toDate, { showLoading: !defaultView });
   }, [category, fetchCommits, fromDate, isSearchMode, page, toDate]);
 
   const handleSearch = useCallback(async (query: string) => {
