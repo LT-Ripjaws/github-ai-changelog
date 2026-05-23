@@ -556,7 +556,6 @@ The frontend tracks `/repos/:id/status` while a repo is `pending` or `syncing` �
 ## Known Limitations
 
 - By default sync fetches the latest 100 commits per repository; `INCREMENTAL_SYNC=on` lifts this up to `MAX_COMMITS_PER_SYNC`.
-- Semantic search uses brute-force pgvector distance because the Gemini embedding dimension is 3072 (an HNSW index / ≤2000-dim re-embedding is deferred — see `plan.md` Phase 5).
 - TypeORM migrations exist for additive deltas; the frozen `ensureSchema()` baseline remains the bootstrap and is intentionally not migrated.
 - AI output can vary and should be reviewed before using it as official release communication. `AI_COMBINED_ANALYSIS` effectiveness depends on the configured model returning parseable JSON (it safely falls back to per-field calls otherwise).
 - Classic GitHub OAuth requires the broad `repo` scope for private repository access.
