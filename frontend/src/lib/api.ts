@@ -39,6 +39,11 @@ export const deleteRepo = (id: string) => api.delete<{ message: string }>(`/repo
 export const syncRepo = (id: string) => api.post<{ message: string }>(`/repos/${id}/sync`).then(r => r.data);
 export const getRepoStatus = (id: string) => api.get<RepoStatus>(`/repos/${id}/status`).then(r => r.data);
 
+// Phase 4: SSE stream of sync status. Cookie auth travels via withCredentials
+// (CORS is already credentialed). Caller owns closing the EventSource.
+export const subscribeRepoStatus = (id: string): EventSource =>
+  new EventSource(`${API_URL}/repos/${id}/status/stream`, { withCredentials: true });
+
 // Commits
 export const getCommits = (
   repoId: string,

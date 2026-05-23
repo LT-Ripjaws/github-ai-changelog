@@ -43,7 +43,7 @@ function ChangeSection({
       </h4>
       <ul className="space-y-1">
         {items.map((item, index) => (
-          <li key={index} className={`border-l-2 pl-4 text-sm text-text-secondary ${borderClass}`}>
+          <li key={index} className={`break-words border-l-2 pl-4 text-sm text-text-secondary ${borderClass}`}>
             {item}
           </li>
         ))}
@@ -122,12 +122,12 @@ export default function ReleasesClient({ repoId, initialData }: ReleasesClientPr
                             <Link
                               href={detailHref}
                               prefetch={false}
-                              className="text-lg font-medium text-text-primary transition-colors hover:text-brand-indigo focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-indigo/60 font-feature-settings-cv01-ss03"
+                              className="break-all text-lg font-medium text-text-primary transition-colors hover:text-brand-indigo focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-indigo/60 font-feature-settings-cv01-ss03"
                             >
                               {release.tagName}
                             </Link>
                             {release.releaseName ? (
-                              <span className="text-sm text-text-tertiary">— {release.releaseName}</span>
+                              <span className="break-words text-sm text-text-tertiary">— {release.releaseName}</span>
                             ) : null}
                           </div>
                           <div className="flex flex-wrap items-center gap-4 text-sm text-text-tertiary">
@@ -219,7 +219,7 @@ export default function ReleasesClient({ repoId, initialData }: ReleasesClientPr
                             <h4 className="text-sm font-medium uppercase tracking-wide text-text-tertiary font-feature-settings-cv01-ss03">
                               Raw Notes
                             </h4>
-                            <pre className="whitespace-pre-wrap rounded-md bg-surface-2 p-4 font-sans text-sm text-text-secondary">
+                            <pre className="overflow-x-auto break-words rounded-md bg-surface-2 p-4 font-sans text-sm text-text-secondary whitespace-pre-wrap">
                               {release.rawBody}
                             </pre>
                           </div>

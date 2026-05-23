@@ -21,11 +21,21 @@ const faqs = [
   },
 ];
 
+const faqDelays = ["80", "140", "200", "260", "320"];
+
 export function FAQ() {
   return (
-    <section className="relative bg-surface-0 py-24">
+    <section
+      className="landing-lazy-section relative bg-surface-0 py-24"
+      data-lazy-size="medium"
+      data-scroll-section
+    >
       <div className="container relative z-10 mx-auto px-6">
-        <div className="mx-auto mb-14 max-w-2xl text-center">
+        <div
+          className="mx-auto mb-14 max-w-2xl text-center"
+          data-scroll-reveal
+          data-reveal-effect="up"
+        >
           <span className="mb-3 block text-xs font-medium uppercase tracking-[0.2em] text-brand-indigo">
             Questions
           </span>
@@ -37,9 +47,20 @@ export function FAQ() {
           </h2>
         </div>
 
-        <div className="mx-auto max-w-3xl divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-standard bg-surface-1">
-          {faqs.map((f) => (
-            <details key={f.q} className="group">
+        <div
+          className="mx-auto max-w-3xl divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-standard bg-surface-1"
+          data-scroll-reveal
+          data-reveal-effect="up"
+          data-reveal-delay="80"
+        >
+          {faqs.map((f, i) => (
+            <details
+              key={f.q}
+              className="group"
+              data-scroll-reveal
+              data-reveal-effect="soft"
+              data-reveal-delay={faqDelays[i]}
+            >
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 text-left text-base font-medium text-text-primary transition-colors hover:bg-surface-2/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-indigo/60">
                 {f.q}
                 <svg

@@ -56,8 +56,13 @@ export class RepoEntity {
   @Column({ name: 'error_message', nullable: true }) 
   errorMessage: string;
 
-  @Column({ name: 'last_synced_at', nullable: true }) 
+  @Column({ name: 'last_synced_at', nullable: true })
   lastSyncedAt: Date;
+
+  // GitHub commits-list ETag for conditional requests (Phase 3b). Added by
+  // migration, not ensureSchema (the frozen baseline never changes).
+  @Column({ name: 'commits_etag', nullable: true })
+  commitsEtag: string;
 
   @Column({ name: 'total_commits_synced', default: 0 })
   totalCommitsSynced: number;

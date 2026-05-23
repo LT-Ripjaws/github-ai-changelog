@@ -10,6 +10,10 @@ interface SyncJobData {
   repoId: string;
 }
 
+// Default 1 = today's behavior (one repo syncs at a time). Raising this is
+// only safe once rate limiting is distributed (Phase 2).
+const SYNC_CONCURRENCY = Number(process.env.SYNC_CONCURRENCY) || 1;
+
 @Processor('repo-sync')
 export class JobsProcessor {
   private readonly logger = new Logger(JobsProcessor.name);
@@ -40,7 +44,7 @@ export class JobsProcessor {
     }
   }
 
-  @Process('sync')
+  @Process({ name: 'sync', concurrency: SYNC_CONCURRENCY })
   async handleSync(job: Job<SyncJobData>) {
     const { repoId } = job.data;
     this.logger.log(`Starting sync for repo ${repoId}`);

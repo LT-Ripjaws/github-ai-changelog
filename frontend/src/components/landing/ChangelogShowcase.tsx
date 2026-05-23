@@ -15,12 +15,23 @@ const generated = [
   { cat: "refactor", text: "Token rotation moved into a dedicated AuthSession (no behavior change)." },
 ];
 
+const rowDelays = ["180", "240", "300", "360", "420"];
+const noteDelays = ["260", "320", "380", "440"];
+
 export function ChangelogShowcase() {
   return (
-    <section className="relative overflow-hidden bg-surface-1 py-24">
+    <section
+      className="landing-lazy-section relative overflow-hidden bg-surface-1 py-24"
+      data-lazy-size="tall"
+      data-scroll-section
+    >
       <div className="section-atmosphere" aria-hidden="true" />
       <div className="container relative z-10 mx-auto px-6">
-        <div className="mx-auto mb-14 max-w-2xl text-center">
+        <div
+          className="mx-auto mb-14 max-w-2xl text-center"
+          data-scroll-reveal
+          data-reveal-effect="up"
+        >
           <span className="mb-3 block text-xs font-medium uppercase tracking-[0.2em] text-brand-indigo">
             Raw commits in, narrative out
           </span>
@@ -34,13 +45,24 @@ export function ChangelogShowcase() {
 
         <div className="mx-auto grid max-w-5xl items-center gap-5 lg:grid-cols-[1fr_auto_1fr]">
           {/* before */}
-          <div className="card-linear animate-fade-in-up p-5">
+          <div
+            className="card-linear p-5"
+            data-scroll-reveal
+            data-reveal-effect="slide-left"
+            data-reveal-delay="80"
+          >
             <p className="mb-3 text-xs font-medium uppercase tracking-wide text-text-tertiary">
               git log
             </p>
             <div className="space-y-2 font-mono text-xs leading-relaxed text-text-tertiary">
-              {rawCommits.map((c) => (
-                <div key={c.sha} className="flex gap-2">
+              {rawCommits.map((c, i) => (
+                <div
+                  key={c.sha}
+                  className="flex gap-2"
+                  data-scroll-reveal
+                  data-reveal-effect="soft"
+                  data-reveal-delay={rowDelays[i]}
+                >
                   <span className="select-none text-text-quaternary">{c.sha}</span>
                   <span className="truncate">{c.msg}</span>
                 </div>
@@ -52,6 +74,9 @@ export function ChangelogShowcase() {
           <div
             className="mx-auto flex h-9 w-9 items-center justify-center rounded-full border border-border-standard bg-surface-2 text-brand-indigo"
             aria-hidden="true"
+            data-scroll-reveal
+            data-reveal-effect="scale"
+            data-reveal-delay="180"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
               <path d="M5 12h14M13 6l6 6-6 6" />
@@ -59,7 +84,12 @@ export function ChangelogShowcase() {
           </div>
 
           {/* after */}
-          <div className="card-linear animate-fade-in-up animate-delay-200 p-5">
+          <div
+            className="card-linear p-5"
+            data-scroll-reveal
+            data-reveal-effect="slide-right"
+            data-reveal-delay="160"
+          >
             <div className="mb-3 flex items-center gap-2">
               <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-brand-indigo/20 text-[9px] text-brand-indigo">
                 AI
@@ -70,7 +100,13 @@ export function ChangelogShowcase() {
             </div>
             <div className="space-y-3">
               {generated.map((g, i) => (
-                <div key={i} className="flex items-start gap-2.5">
+                <div
+                  key={i}
+                  className="flex items-start gap-2.5"
+                  data-scroll-reveal
+                  data-reveal-effect="soft"
+                  data-reveal-delay={noteDelays[i]}
+                >
                   <span
                     className={`mt-0.5 shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium capitalize ${CATEGORY_COLORS[g.cat] ?? ""}`}
                   >

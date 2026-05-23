@@ -91,23 +91,23 @@ export const RepoCard = memo(function RepoCard({ repo, syncProgress, onSync, onD
   };
 
   return (
-    <Card className="card-linear group overflow-visible animate-fade-in-up transition-colors">
+    <Card className="card-linear group min-w-0 overflow-visible animate-fade-in-up transition-colors">
       <Link
         href={overviewHref}
         prefetch
         aria-label={`Open ${repo.fullName} overview`}
-        className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-indigo/60"
+        className="block min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-indigo/60"
       >
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 space-y-1">
-              <CardTitle className="flex items-center gap-2 text-lg font-medium text-text-primary font-feature-settings-cv01-ss03">
-                <span className="truncate group-hover:text-brand-indigo transition-colors">{repo.fullName}</span>
+              <CardTitle className="flex min-w-0 items-center gap-2 text-lg font-medium text-text-primary font-feature-settings-cv01-ss03">
+                <span className="min-w-0 flex-1 truncate group-hover:text-brand-indigo transition-colors">{repo.fullName}</span>
                 <span className="shrink-0 text-text-tertiary transition-transform group-hover:translate-x-0.5" aria-hidden="true">
                   →
                 </span>
               </CardTitle>
-              <CardDescription className="line-clamp-2 text-text-secondary">
+              <CardDescription className="line-clamp-2 break-words text-text-secondary">
                 {repo.description || "No description"}
               </CardDescription>
             </div>
@@ -147,40 +147,40 @@ export const RepoCard = memo(function RepoCard({ repo, syncProgress, onSync, onD
             />
           ) : null}
 
-          <div className="grid grid-cols-2 gap-3 border-t border-border-subtle pt-4 text-sm">
-            <div>
+          <div className="grid gap-3 border-t border-border-subtle pt-4 text-sm sm:grid-cols-2">
+            <div className="min-w-0">
               <p className="text-xs uppercase tracking-wide text-text-tertiary font-feature-settings-cv01-ss03">Commits</p>
-              <p className="mt-1 text-text-primary tabular-nums">
+              <p className="mt-1 break-words text-text-primary tabular-nums">
                 {displayCommits > 0 ? displayCommits.toLocaleString() : "None yet"}
               </p>
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs uppercase tracking-wide text-text-tertiary font-feature-settings-cv01-ss03">Last sync</p>
-              <p className="mt-1 text-text-primary tabular-nums">{formatDate(repo.lastSyncedAt, { fallback: "Never synced" })}</p>
+              <p className="mt-1 break-words text-text-primary tabular-nums">{formatDate(repo.lastSyncedAt, { fallback: "Never synced" })}</p>
             </div>
           </div>
 
           {repo.status === "error" && repo.errorMessage ? (
             <div className="rounded-md border border-destructive/20 bg-destructive/10 p-2" role="alert">
-              <p className="text-sm text-destructive">{safeErrorMessage(repo.errorMessage)}</p>
+              <p className="break-words text-sm text-destructive">{safeErrorMessage(repo.errorMessage)}</p>
             </div>
           ) : null}
         </CardContent>
       </Link>
 
       <CardContent className="border-t border-border-subtle pt-4">
-        <div className="flex items-center justify-between gap-3">
-          <p className="min-w-0 text-xs text-text-tertiary">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="min-w-0 break-words text-xs text-text-tertiary">
             Open overview for commits, releases, and analytics.
           </p>
 
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:flex sm:shrink-0 sm:justify-start">
             <Button
               variant="outline"
               size="sm"
               onClick={handleSync}
               disabled={syncing || isSyncing}
-              className="btn-linear-primary"
+              className="btn-linear-primary min-w-0 sm:min-w-24"
             >
               {syncing || isSyncing ? "Syncing…" : "Sync"}
             </Button>

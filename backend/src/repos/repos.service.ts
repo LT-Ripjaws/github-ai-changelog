@@ -10,16 +10,20 @@ import { RepoEntity, RepoStatus } from './entities/repo.entity';
 import { GithubService } from './github.service';
 import { CreateRepoDto } from './dto/create-repo.dto';
 import { JobsService } from '../jobs/jobs.service';
+import { RedisPubSubService } from '../common/pubsub/redis-pubsub.service';
 
 @Injectable()
 export class ReposService {
   private readonly logger = new Logger(ReposService.name);
+  // Push status transitions only when SSE is enabled (Phase 4). Default off.
+  private readonly pushEnabled = process.env.STATUS_TRANSPORT === 'sse';
 
   constructor(
     @InjectRepository(RepoEntity)
     private reposRepo: Repository<RepoEntity>,
     private githubService: GithubService,
     private jobsService: JobsService,
+    private pubsub: RedisPubSubService,
   ) {}
 
   
@@ -182,6 +186,24 @@ export class ReposService {
       updateData.lastSyncedAt = new Date();
     }
     await this.reposRepo.update(id, updateData);
+
+    if (this.pushEnabled) {
+      try {
+        const repo = await this.reposRepo.findOne({ where: { id } });
+        if (repo) {
+          await this.pubsub.publish(this.pubsub.channel(id), {
+            status: repo.status,
+            totalCommitsSynced: repo.totalCommitsSynced,
+            totalCommitsToSync: repo.totalCommitsToSync,
+            errorMessage: repo.errorMessage ?? null,
+            lastSyncedAt: repo.lastSyncedAt ?? null,
+          });
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`status publish failed: ${message}`);
+      }
+    }
   }
 
 }

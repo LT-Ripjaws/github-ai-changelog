@@ -16,11 +16,21 @@ const steps = [
   },
 ];
 
+const stepDelays = ["80", "180", "280"];
+
 export function HowItWorks() {
   return (
-    <section className="relative overflow-hidden bg-surface-0 py-24">
+    <section
+      className="landing-lazy-section relative overflow-hidden bg-surface-0 py-24"
+      data-lazy-size="medium"
+      data-scroll-section
+    >
       <div className="container relative z-10 mx-auto px-6">
-        <div className="mx-auto mb-16 max-w-2xl text-center">
+        <div
+          className="mx-auto mb-16 max-w-2xl text-center"
+          data-scroll-reveal
+          data-reveal-effect="up"
+        >
           <span className="mb-3 block text-xs font-medium uppercase tracking-[0.2em] text-brand-indigo">
             How it works
           </span>
@@ -36,11 +46,14 @@ export function HowItWorks() {
           {steps.map((step, i) => (
             <div
               key={step.n}
-              className={`animate-fade-in-up bg-surface-1 p-7 animate-delay-${(i + 1) * 100}`}
+              className="bg-surface-1 p-7"
+              data-scroll-reveal
+              data-reveal-effect="up"
+              data-reveal-delay={stepDelays[i]}
             >
               <div className="mb-5 flex items-center gap-3">
                 <span className="font-mono text-sm text-brand-indigo tabular-nums">{step.n}</span>
-                <span className="h-px flex-1 bg-border-standard" aria-hidden="true" />
+                <span className="scroll-step-line h-px flex-1 bg-border-standard" aria-hidden="true" />
               </div>
               <h3 className="mb-2 text-lg font-medium text-text-primary font-feature-settings-cv01-ss03">
                 {step.title}

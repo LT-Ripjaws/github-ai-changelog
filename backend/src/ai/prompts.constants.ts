@@ -22,6 +22,29 @@ Commit message: {message}
 Files changed: {filesChanged}
 Diff summary: {diffSummary}`;
 
+// Phase 3a: one structured call replacing the diff-summary + categorize +
+// changelog trio. On any parse failure the caller falls back to the three
+// single-purpose prompts above, so output is never worse than today.
+export const ANALYZE_COMMIT_PROMPT = `Analyze this git commit and respond with ONLY a JSON object, no markdown, no commentary.
+
+The JSON must have exactly these keys:
+- "diffSummary": 1-3 sentences on WHAT changed functionally (not HOW). Empty string if no diff is given.
+- "category": exactly one of: breaking, feature, fix, chore, docs, refactor
+  - breaking: removes/changes existing behavior non-backward-compatibly
+  - feature: adds new functionality
+  - fix: fixes a bug or incorrect behavior
+  - chore: dependency updates, config, CI/CD, build tooling, version bumps
+  - docs: documentation changes only
+  - refactor: code restructure with no behavior change
+- "changelog": one changelog entry for developers, specific, starts with a verb, max 2 sentences, does not start with "This commit".
+
+Commit message: {message}
+Files changed: {filesChanged}
+Diff:
+{diff}
+
+JSON:`;
+
 export const RELEASE_SUMMARY_PROMPT = `Write a 3-4 sentence release summary for developers. Highlight the most important changes. Mention breaking changes prominently if any exist.
 
 Release tag: {tagName}

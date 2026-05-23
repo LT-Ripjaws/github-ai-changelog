@@ -47,7 +47,7 @@ export function ConfirmDialog({
       {/* Dialog */}
       <div
         ref={dialogRef}
-        className="relative z-10 w-full max-w-md mx-4 card-linear p-6 space-y-4 animate-fade-in-up"
+        className="relative z-10 mx-4 w-full max-w-md space-y-4 card-linear p-4 animate-fade-in-up sm:p-6"
       >
         <h2 id="confirm-title" className="text-lg font-medium text-text-primary text-balance font-feature-settings-cv01-ss03">
           {title}
@@ -55,14 +55,18 @@ export function ConfirmDialog({
         <p id="confirm-description" className="text-sm text-text-secondary">
           {description}
         </p>
-        <div className="flex justify-end gap-3 pt-2">
-          <Button ref={cancelRef} variant="outline" onClick={onCancel} className="btn-linear-ghost">
+        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end sm:gap-3">
+          <Button ref={cancelRef} variant="outline" onClick={onCancel} className="btn-linear-ghost w-full sm:w-auto">
             {cancelLabel}
           </Button>
           <Button
             variant={variant === "destructive" ? "destructive" : "default"}
             onClick={onConfirm}
-            className={variant === "destructive" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : "btn-linear-primary"}
+            className={
+              variant === "destructive"
+                ? "w-full bg-destructive text-destructive-foreground hover:bg-destructive/90 sm:w-auto"
+                : "btn-linear-primary w-full sm:w-auto"
+            }
           >
             {confirmLabel}
           </Button>

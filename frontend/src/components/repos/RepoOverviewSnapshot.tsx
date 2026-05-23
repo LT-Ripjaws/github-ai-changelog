@@ -152,12 +152,12 @@ export function RepoOverviewSnapshot({ initialRepo }: { initialRepo: Repo }) {
           { label: "Default branch", value: repo.defaultBranch, code: true },
           { label: "Visibility", value: repo.isPrivate ? "Private" : "Public" },
         ].map((stat) => (
-          <div key={stat.label} className="rounded-md border border-border-subtle bg-surface-2/50 p-4">
+          <div key={stat.label} className="min-w-0 rounded-md border border-border-subtle bg-surface-2/50 p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-text-tertiary font-feature-settings-cv01-ss03">
               {stat.label}
             </p>
             {stat.code ? (
-              <code className="mt-2 inline-block rounded bg-card px-2 py-1 font-mono text-sm text-text-primary">
+              <code className="mt-2 inline-block break-all rounded bg-card px-2 py-1 font-mono text-sm text-text-primary">
                 {stat.value}
               </code>
             ) : (

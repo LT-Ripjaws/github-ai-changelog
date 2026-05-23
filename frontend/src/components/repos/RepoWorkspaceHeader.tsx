@@ -14,21 +14,21 @@ export function RepoWorkspaceHeader({ repo }: RepoWorkspaceHeaderProps) {
   return (
     <section className="card-linear overflow-hidden animate-fade-in-up">
       <div className="space-y-4 p-5">
-        <div className="flex items-center gap-2 text-sm text-text-tertiary">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-text-tertiary">
           <Link href="/dashboard" prefetch className="hover:text-text-primary transition-colors">
             Repositories
           </Link>
           <span aria-hidden="true">/</span>
           <span>{owner}</span>
           <span aria-hidden="true">/</span>
-          <span className="text-text-primary">{repo.name}</span>
+          <span className="break-all text-text-primary">{repo.name}</span>
         </div>
 
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 space-y-2">
             <div className="flex flex-wrap items-center gap-3">
               <h1
-                className="font-feature-settings-cv01-ss03 text-2xl font-medium text-text-primary text-balance"
+                className="break-words font-feature-settings-cv01-ss03 text-2xl font-medium text-text-primary text-balance"
                 style={{ letterSpacing: "-0.288px" }}
               >
                 {repo.fullName}
@@ -44,7 +44,7 @@ export function RepoWorkspaceHeader({ repo }: RepoWorkspaceHeaderProps) {
 
             <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-text-tertiary">
               <span>
-                Default branch: <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-text-secondary">{repo.defaultBranch}</code>
+                Default branch: <code className="break-all rounded bg-surface-2 px-1.5 py-0.5 font-mono text-text-secondary">{repo.defaultBranch}</code>
               </span>
               <span className="tabular-nums">Stars: {repo.starsCount.toLocaleString()}</span>
               <span>Language: {repo.language || "—"}</span>

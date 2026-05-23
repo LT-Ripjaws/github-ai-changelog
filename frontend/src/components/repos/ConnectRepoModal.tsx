@@ -97,17 +97,17 @@ export function ConnectRepoModal({
                 <p id="connect-repo-error" className="text-sm text-destructive" role="alert">{error}</p>
               )}
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button
                 type="button"
                 variant="outline"
                 onClick={onClose}
                 disabled={loading}
-                className="btn-linear-ghost"
+                className="btn-linear-ghost w-full sm:w-auto"
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading || !fullName.trim()} className="btn-linear-primary">
+              <Button type="submit" disabled={loading || !fullName.trim()} className="btn-linear-primary w-full sm:w-auto">
                 {loading ? "Connecting…" : "Connect"}
               </Button>
             </div>

@@ -4,26 +4,48 @@ import { Repository, DataSource, In } from 'typeorm';
 import { RepoEntity, RepoStatus } from './entities/repo.entity';
 import { CommitEntity } from '../commits/entities/commit.entity';
 import { ReleaseEntity } from '../releases/entities/release.entity';
-import { ReleaseCommitEntity } from '../releases/entities/release-commit.entity';
 import { GitHubReleaseResponse, GithubService } from './github.service';
 import { AiService } from '../ai/ai.service';
 import { UsersService } from '../users/users.service';
 import { getErrorMessage } from '../common/errors';
+import { RedisPubSubService } from '../common/pubsub/redis-pubsub.service';
 
 @Injectable()
 export class IngestionService {
   private readonly logger = new Logger(IngestionService.name);
+  // Push progress only when SSE transport is enabled (Phase 4). Default off
+  // = no extra Redis/DB load, identical to today.
+  private readonly pushEnabled = process.env.STATUS_TRANSPORT === 'sse';
 
   constructor(
     @InjectRepository(RepoEntity) private reposRepo: Repository<RepoEntity>,
     @InjectRepository(CommitEntity) private commitsRepo: Repository<CommitEntity>,
     @InjectRepository(ReleaseEntity) private releasesRepo: Repository<ReleaseEntity>,
-    @InjectRepository(ReleaseCommitEntity) private releaseCommitsRepo: Repository<ReleaseCommitEntity>,
     private dataSource: DataSource,
     private githubService: GithubService,
     private aiService: AiService,
     private usersService: UsersService,
+    private pubsub: RedisPubSubService,
   ) {}
+
+  // Re-reads the same fields the poll endpoint returns and publishes them so
+  // SSE subscribers get live progress. Fail-soft and a no-op unless SSE is on.
+  private async publishStatus(repoId: string): Promise<void> {
+    if (!this.pushEnabled) return;
+    try {
+      const repo = await this.reposRepo.findOne({ where: { id: repoId } });
+      if (!repo) return;
+      await this.pubsub.publish(this.pubsub.channel(repoId), {
+        status: repo.status,
+        totalCommitsSynced: repo.totalCommitsSynced,
+        totalCommitsToSync: repo.totalCommitsToSync,
+        errorMessage: repo.errorMessage ?? null,
+        lastSyncedAt: repo.lastSyncedAt ?? null,
+      });
+    } catch (err: unknown) {
+      this.logger.warn(`publishStatus failed: ${getErrorMessage(err)}`);
+    }
+  }
 
   async syncRepo(repoId: string): Promise<void> {
     const repo = await this.reposRepo.findOne({ where: { id: repoId } });
@@ -37,12 +59,41 @@ export class IngestionService {
     const [owner, repoName] = fullName.split('/');
 
     // === STEP 1: Fetch + process commits ===
+    // INCREMENTAL_SYNC=on: conditional ETag fetch + `since` + pagination
+    // (Phase 3b). Default off = the original single-page, 100-commit fetch.
     this.logger.log(`Fetching commits for ${fullName}`);
-    const rawCommits = await this.githubService.getCommits(owner, repoName, token, 100);
+    let rawCommits;
+    if (process.env.INCREMENTAL_SYNC === 'on') {
+      const maxCommits = Number(process.env.MAX_COMMITS_PER_SYNC) || 500;
+      const sinceIso = repo.lastSyncedAt
+        ? new Date(repo.lastSyncedAt).toISOString()
+        : undefined;
+      const result = await this.githubService.getCommitsIncremental(
+        owner,
+        repoName,
+        token,
+        { sinceIso, etag: repo.commitsEtag, maxCommits },
+      );
+      if (result.notModified) {
+        this.logger.log(`No new commits for ${fullName} (GitHub 304); marking ready`);
+        // Preserve lastSyncedAt so the stored ETag stays valid for repeated
+        // unchanged re-syncs (keeps hitting 304).
+        await this.reposRepo.update(repo.id, { status: RepoStatus.Ready });
+        await this.publishStatus(repo.id);
+        return;
+      }
+      rawCommits = result.commits;
+      if (result.etag) {
+        await this.reposRepo.update(repo.id, { commitsEtag: result.etag });
+      }
+    } else {
+      rawCommits = await this.githubService.getCommits(owner, repoName, token, 100);
+    }
     this.logger.log(`Got ${rawCommits.length} commits, processing...`);
 
     // Track total commits for progress display
     await this.reposRepo.update(repo.id, { totalCommitsToSync: rawCommits.length });
+    await this.publishStatus(repo.id);
 
     const processedShas = new Map<string, string>(); // sha → commit UUID
 
@@ -93,10 +144,26 @@ export class IngestionService {
         this.logger.warn(`Could not fetch diff for ${sha}: ${getErrorMessage(err)}`);
       }
 
-      // AI processing (all wrapped in try/catch inside aiService already)
-      const diffSummary = diffText ? await this.aiService.generateDiffSummary(diffText) : (existing?.diffSummary ?? '');
-      const category = await this.aiService.categorizeCommit(rawCommit.commit.message, diffSummary);
-      const aiChangelog = await this.aiService.generateChangelog(rawCommit.commit.message, filesChanged, diffSummary);
+      // AI processing (all wrapped in try/catch inside aiService already).
+      // AI_COMBINED_ANALYSIS=on collapses the 3 text calls into 1 (Phase 3a);
+      // default off = the original 3-call path, byte-for-byte unchanged.
+      let diffSummary: string;
+      let category: string;
+      let aiChangelog: string;
+      if (process.env.AI_COMBINED_ANALYSIS === 'on') {
+        const analysis = await this.aiService.analyzeCommit(
+          rawCommit.commit.message,
+          filesChanged,
+          diffText,
+        );
+        diffSummary = diffText ? analysis.diffSummary : (existing?.diffSummary ?? '');
+        category = analysis.category;
+        aiChangelog = analysis.changelog;
+      } else {
+        diffSummary = diffText ? await this.aiService.generateDiffSummary(diffText) : (existing?.diffSummary ?? '');
+        category = await this.aiService.categorizeCommit(rawCommit.commit.message, diffSummary);
+        aiChangelog = await this.aiService.generateChangelog(rawCommit.commit.message, filesChanged, diffSummary);
+      }
       const embedding = await this.aiService.generateEmbedding(rawCommit.commit.message + ' ' + diffSummary);
 
       // Safety check right before DB write cuz repo might have been deleted during AI calls
@@ -164,6 +231,7 @@ export class IngestionService {
       // Update sync progress counter (only for new commits)
       if (!existing) {
         await this.reposRepo.increment({ id: repo.id }, 'totalCommitsSynced', 1);
+        await this.publishStatus(repo.id);
       }
     }
 
@@ -256,6 +324,7 @@ export class IngestionService {
       totalCommitsSynced: actualCommitCount,
       lastSyncedAt: new Date(),
     });
+    await this.publishStatus(repo.id);
 
     this.logger.log(`Sync complete for ${fullName}`);
   }

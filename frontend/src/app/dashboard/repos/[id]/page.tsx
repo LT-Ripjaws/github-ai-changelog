@@ -65,7 +65,7 @@ export default async function RepoOverviewPage({
                   <Link
                     href={`/dashboard/repos/${repo.id}/releases/${encodeURIComponent(latestRelease.tagName)}`}
                     prefetch
-                    className="text-xl font-medium text-text-primary transition-colors hover:text-brand-indigo font-feature-settings-cv01-ss03"
+                    className="break-all text-xl font-medium text-text-primary transition-colors hover:text-brand-indigo font-feature-settings-cv01-ss03"
                   >
                     {latestRelease.tagName}
                   </Link>
@@ -74,7 +74,7 @@ export default async function RepoOverviewPage({
                   </span>
                 </div>
                 {latestRelease.releaseName ? (
-                  <p className="text-sm text-text-secondary">{latestRelease.releaseName}</p>
+                  <p className="break-words text-sm text-text-secondary">{latestRelease.releaseName}</p>
                 ) : null}
                 <p className="text-xs text-text-tertiary tabular-nums">
                   Released {formatDate(latestRelease.releasedAt, { withTime: true })}
@@ -124,17 +124,17 @@ export default async function RepoOverviewPage({
               className="group rounded-md border border-border-subtle bg-surface-2/40 p-4 transition-colors hover:border-brand-indigo/30 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-indigo/60"
             >
               <div className="flex items-center justify-between gap-3">
-                <h3 className="font-medium text-text-primary transition-colors group-hover:text-brand-indigo font-feature-settings-cv01-ss03">
+                <h3 className="min-w-0 break-words font-medium text-text-primary transition-colors group-hover:text-brand-indigo font-feature-settings-cv01-ss03">
                   {item.label}
                 </h3>
                 <span className="text-text-tertiary transition-transform group-hover:translate-x-0.5" aria-hidden="true">
                   →
                 </span>
               </div>
-              <p className="mt-2 text-xs uppercase tracking-wide text-text-tertiary font-feature-settings-cv01-ss03">
+              <p className="mt-2 break-words text-xs uppercase tracking-wide text-text-tertiary font-feature-settings-cv01-ss03">
                 {item.eyebrow}
               </p>
-              <p className="mt-3 text-sm leading-6 text-text-secondary">
+              <p className="mt-3 break-words text-sm leading-6 text-text-secondary">
                 {item.description}
               </p>
             </Link>

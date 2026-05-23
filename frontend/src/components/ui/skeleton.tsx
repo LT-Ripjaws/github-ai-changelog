@@ -32,13 +32,13 @@ function Skeleton({
 // Pre-built skeleton patterns for common use cases
 function SkeletonRepoCard() {
   return (
-    <div className="card-linear p-6 space-y-4 animate-fade-in-up">
-      <div className="flex items-center justify-between">
-        <Skeleton variant="text" className="h-5 w-1/3" />
-        <Skeleton variant="button" className="h-6 w-16" />
+    <div className="card-linear min-w-0 space-y-4 p-4 animate-fade-in-up sm:p-6">
+      <div className="flex items-center justify-between gap-3">
+        <Skeleton variant="text" className="h-5 min-w-0 flex-1" />
+        <Skeleton variant="button" className="h-6 w-16 shrink-0" />
       </div>
       <Skeleton variant="text" className="h-3 w-2/3" />
-      <div className="flex items-center space-x-4 pt-2">
+      <div className="flex flex-wrap items-center gap-3 pt-2">
         <Skeleton variant="text" className="h-3 w-20" />
         <Skeleton variant="text" className="h-3 w-20" />
         <Skeleton variant="text" className="h-3 w-20" />
@@ -49,7 +49,7 @@ function SkeletonRepoCard() {
 
 function SkeletonCommitRow() {
   return (
-    <div className="flex items-center space-x-4 p-4 animate-fade-in-up card-linear">
+    <div className="flex min-w-0 flex-col gap-3 p-4 animate-fade-in-up card-linear sm:flex-row sm:items-center sm:gap-4">
       <Skeleton variant="avatar" className="h-8 w-8" />
       <div className="flex-1 space-y-2">
         <Skeleton variant="text" className="h-4 w-3/4" />
@@ -62,10 +62,10 @@ function SkeletonCommitRow() {
 
 function SkeletonReleaseCard() {
   return (
-    <div className="card-linear p-6 space-y-4 animate-fade-in-up">
-      <div className="flex items-center justify-between">
-        <Skeleton variant="text" className="h-5 w-1/4" />
-        <Skeleton variant="button" className="h-6 w-20" />
+    <div className="card-linear min-w-0 space-y-4 p-4 animate-fade-in-up sm:p-6">
+      <div className="flex items-center justify-between gap-3">
+        <Skeleton variant="text" className="h-5 min-w-0 flex-1" />
+        <Skeleton variant="button" className="h-6 w-20 shrink-0" />
       </div>
       <Skeleton variant="text" className="h-3 w-full" />
       <Skeleton variant="text" className="h-3 w-5/6" />
@@ -80,7 +80,7 @@ function SkeletonReleaseCard() {
 
 function SkeletonChart() {
   return (
-    <div className="card-linear p-6 animate-fade-in-up">
+    <div className="card-linear min-w-0 p-4 animate-fade-in-up sm:p-6">
       <Skeleton variant="text" className="h-5 w-1/3 mb-4" />
       <div className="h-64 flex items-end space-x-2">
         {CHART_SKELETON_HEIGHTS.map((height, i) => (

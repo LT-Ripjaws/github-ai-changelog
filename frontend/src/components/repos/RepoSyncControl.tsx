@@ -96,10 +96,10 @@ export function RepoSyncControl({ repoId, initialRepo }: RepoSyncControlProps) {
   }, [repoId, pollUntilDone]);
 
   return (
-    <div className="flex flex-col items-start gap-2 sm:items-end">
-      <div className="flex items-center gap-3">
+    <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
+      <div className="flex w-full flex-wrap items-center justify-between gap-3 sm:w-auto sm:justify-end">
         <SyncStatusBadge status={isSyncing ? "syncing" : repo.status} />
-        <Button onClick={handleSync} disabled={isSyncing} className="btn-linear-primary">
+        <Button onClick={handleSync} disabled={isSyncing} className="btn-linear-primary min-w-24 flex-1 sm:flex-none">
           {isSyncing ? "Syncing…" : "Sync Now"}
         </Button>
       </div>
@@ -108,12 +108,12 @@ export function RepoSyncControl({ repoId, initialRepo }: RepoSyncControlProps) {
         <SyncProgress
           synced={repo.totalCommitsSynced}
           total={repo.totalCommitsToSync}
-          className="w-full min-w-[180px] sm:w-56"
+          className="w-full sm:w-56"
         />
       ) : null}
 
       {repo.status === "error" && repo.errorMessage ? (
-        <p className="max-w-xs text-right text-xs text-destructive" role="alert">
+        <p className="max-w-full text-left text-xs text-destructive sm:max-w-xs sm:text-right" role="alert">
           {safeErrorMessage(repo.errorMessage)}
         </p>
       ) : null}

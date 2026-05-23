@@ -34,7 +34,7 @@ export default function SemanticSearchBar({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex min-w-[260px] flex-1 gap-2" role="search">
+    <form onSubmit={handleSubmit} className="flex w-full min-w-0 flex-col gap-2 sm:flex-row xl:flex-1" role="search">
       <div className="relative flex-1">
         <Search
           className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary"
@@ -52,7 +52,7 @@ export default function SemanticSearchBar({
       <Button
         type="submit"
         disabled={loading || !query.trim()}
-        className="btn-linear-primary"
+        className="btn-linear-primary w-full sm:w-auto"
         aria-label={loading ? "Searching commits" : "Search commits"}
       >
         {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : "Search"}

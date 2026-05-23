@@ -40,7 +40,7 @@ function CommitRow({ repoId, commit }: CommitRowProps) {
       prefetch={false}
       className="block card-linear p-4 transition-colors hover:border-brand-indigo/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-indigo/60"
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex flex-wrap items-center gap-2">
             <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-xs text-text-tertiary">
@@ -66,7 +66,7 @@ function CommitRow({ repoId, commit }: CommitRowProps) {
             </p>
           ) : null}
         </div>
-        <div className="flex flex-col items-end gap-1 whitespace-nowrap text-right text-xs text-text-tertiary tabular-nums">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-tertiary tabular-nums sm:flex-col sm:items-end sm:gap-1 sm:whitespace-nowrap sm:text-right">
           <span>{formatDate(commit.committedAt)}</span>
           <div className="flex gap-2">
             <span className="text-cat-feature">+{commit.additions}</span>
@@ -91,7 +91,7 @@ function SearchResultRow({ repoId, result }: SearchResultRowProps) {
       prefetch={false}
       className="block card-linear p-4 transition-colors hover:border-brand-indigo/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-indigo/60"
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex flex-wrap items-center gap-2">
             <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-xs text-text-tertiary">
@@ -115,7 +115,7 @@ function SearchResultRow({ repoId, result }: SearchResultRowProps) {
             </p>
           ) : null}
         </div>
-        <div className="flex flex-col items-end gap-1 whitespace-nowrap text-right text-xs text-text-tertiary tabular-nums">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-tertiary tabular-nums sm:flex-col sm:items-end sm:gap-1 sm:whitespace-nowrap sm:text-right">
           <span>{formatDate(result.committedAt)}</span>
           <div className="flex gap-2">
             <span className="text-cat-feature">+{result.additions}</span>
@@ -245,7 +245,7 @@ export default function CommitsClient({ repoId, initialData }: CommitsClientProp
             onSearch={handleSearch}
           />
 
-          <div className="flex flex-wrap items-end gap-2">
+          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end xl:flex xl:flex-wrap">
             <label className="space-y-1">
               <span className="block text-xs font-medium uppercase tracking-wide text-text-tertiary font-feature-settings-cv01-ss03">
                 From
@@ -255,7 +255,7 @@ export default function CommitsClient({ repoId, initialData }: CommitsClientProp
                 value={fromDate}
                 onChange={(event) => handleFromDateChange(event.target.value)}
                 aria-label="Filter commits from date"
-                className="input-linear h-10 min-w-[150px]"
+                className="input-linear h-10 w-full sm:min-w-[150px]"
               />
             </label>
             <label className="space-y-1">
@@ -267,7 +267,7 @@ export default function CommitsClient({ repoId, initialData }: CommitsClientProp
                 value={toDate}
                 onChange={(event) => handleToDateChange(event.target.value)}
                 aria-label="Filter commits to date"
-                className="input-linear h-10 min-w-[150px]"
+                className="input-linear h-10 w-full sm:min-w-[150px]"
               />
             </label>
             <Button
@@ -275,7 +275,7 @@ export default function CommitsClient({ repoId, initialData }: CommitsClientProp
               variant="outline"
               onClick={clearAllControls}
               disabled={!hasActiveControls}
-              className="btn-linear-subtle h-10"
+              className="btn-linear-subtle h-10 w-full sm:w-auto"
             >
               Clear filters
             </Button>

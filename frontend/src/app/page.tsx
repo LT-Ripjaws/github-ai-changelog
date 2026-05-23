@@ -5,6 +5,7 @@ import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Features } from "@/components/landing/Features";
 import { FAQ } from "@/components/landing/FAQ";
 import { CtaBand } from "@/components/landing/CtaBand";
+import { LandingScrollEffects } from "@/components/landing/LandingScrollEffects";
 
 const githubUrl = "https://github.com/LT-Ripjaws/github-ai-changelog";
 
@@ -12,6 +13,7 @@ export default function Home() {
   return (
     <main className="relative min-h-screen">
       <div className="grain-overlay" aria-hidden="true" />
+      <LandingScrollEffects />
       <Navbar />
       <Hero />
       <ChangelogShowcase />
@@ -20,7 +22,7 @@ export default function Home() {
       <FAQ />
       <CtaBand />
 
-      <footer className="border-t border-border-subtle bg-surface-0 py-14">
+      <footer className="relative z-10 border-t border-border-subtle bg-surface-0 py-14">
         <div className="container mx-auto px-6">
           <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:justify-between sm:text-left">
             <div>

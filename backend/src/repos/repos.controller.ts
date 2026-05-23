@@ -8,7 +8,11 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Sse,
+  MessageEvent,
 } from '@nestjs/common';
+import { Observable } from 'rxjs';
+import { RedisPubSubService } from '../common/pubsub/redis-pubsub.service';
 import {
   ApiTags,
   ApiOperation,
@@ -34,6 +38,7 @@ export class ReposController {
   constructor(
     private readonly reposService: ReposService,
     private readonly usersService: UsersService,
+    private readonly pubsub: RedisPubSubService,
   ) {}
 
   @Post()
@@ -108,5 +113,42 @@ export class ReposController {
     @CurrentUser() user: { id: string },
   ) {
     return this.reposService.getStatus(id, user.id);
+  }
+
+  // Phase 4: live sync status over SSE. Same JwtAuthGuard (class-level) +
+  // ownership check as getStatus. Emits an initial snapshot, then streams
+  // pub/sub updates. The frontend keeps polling as an automatic fallback,
+  // so this endpoint existing is inert until STATUS_TRANSPORT=sse is used.
+  @Sse(':id/status/stream')
+  @ApiOperation({ summary: 'Stream sync status (SSE)' })
+  @ApiParam({ name: 'id', description: 'Repository UUID' })
+  streamStatus(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string },
+  ): Observable<MessageEvent> {
+    return new Observable<MessageEvent>((subscriber) => {
+      let closed = false;
+      let handle: { close: () => void } | undefined;
+
+      void (async () => {
+        try {
+          // Ownership: getStatus throws NotFound if the repo isn't the user's.
+          const initial = await this.reposService.getStatus(id, user.id);
+          if (closed) return;
+          subscriber.next({ data: initial } as MessageEvent);
+          handle = await this.pubsub.subscribe(this.pubsub.channel(id), (data) => {
+            if (!closed) subscriber.next({ data } as MessageEvent);
+          });
+          if (closed) handle.close();
+        } catch (err) {
+          subscriber.error(err);
+        }
+      })();
+
+      return () => {
+        closed = true;
+        handle?.close();
+      };
+    });
   }
 }

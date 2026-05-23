@@ -25,21 +25,21 @@ export default async function ReleaseDetailPage({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="card-linear p-6 space-y-4 animate-fade-in-up">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-2">
+      <div className="card-linear space-y-4 p-4 animate-fade-in-up sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 space-y-2">
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-medium text-text-primary text-balance font-feature-settings-cv01-ss03" style={{ letterSpacing: "-0.288px" }}>{release.tagName}</h1>
+              <h1 className="break-all text-2xl font-medium text-text-primary text-balance font-feature-settings-cv01-ss03" style={{ letterSpacing: "-0.288px" }}>{release.tagName}</h1>
               {release.releaseName && (
-                <span className="text-text-tertiary text-lg">&mdash; {release.releaseName}</span>
+                <span className="break-words text-text-tertiary text-lg">&mdash; {release.releaseName}</span>
               )}
             </div>
-            <div className="flex items-center gap-4 text-sm text-text-tertiary">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-text-tertiary">
               <span>{formatDate(release.releasedAt, { withWeekday: true, withTime: true })}</span>
               <span className="tabular-nums">{release.commitsCount} commits</span>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             {release.breakingChanges?.length > 0 && (
               <Badge className="bg-cat-breaking/15 text-cat-breaking border-cat-breaking/30 tabular-nums">
                 {release.breakingChanges.length} breaking
@@ -61,7 +61,7 @@ export default async function ReleaseDetailPage({
 
       {/* AI Summary */}
       {release.aiSummary && (
-        <div className="card-linear p-6 space-y-2 animate-fade-in-up animate-delay-100">
+        <div className="card-linear space-y-2 p-4 animate-fade-in-up animate-delay-100 sm:p-6">
           <h2 className="text-sm font-medium text-text-tertiary uppercase tracking-wide flex items-center gap-2 font-feature-settings-cv01-ss03">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
               <path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z" /><circle cx="12" cy="14" r="2" />
@@ -84,7 +84,7 @@ export default async function ReleaseDetailPage({
             </h3>
             <ul className="space-y-1.5">
               {release.breakingChanges.map((item: string, i: number) => (
-                <li key={i} className="text-sm pl-4 border-l-2 border-cat-breaking/30 text-text-secondary">{item}</li>
+                <li key={i} className="break-words border-l-2 border-cat-breaking/30 pl-4 text-sm text-text-secondary">{item}</li>
               ))}
             </ul>
           </div>
@@ -100,7 +100,7 @@ export default async function ReleaseDetailPage({
             </h3>
             <ul className="space-y-1.5">
               {release.features.map((item: string, i: number) => (
-                <li key={i} className="text-sm pl-4 border-l-2 border-cat-feature/30 text-text-secondary">{item}</li>
+                <li key={i} className="break-words border-l-2 border-cat-feature/30 pl-4 text-sm text-text-secondary">{item}</li>
               ))}
             </ul>
           </div>
@@ -116,7 +116,7 @@ export default async function ReleaseDetailPage({
             </h3>
             <ul className="space-y-1.5">
               {release.fixes.map((item: string, i: number) => (
-                <li key={i} className="text-sm pl-4 border-l-2 border-cat-fix/30 text-text-secondary">{item}</li>
+                <li key={i} className="break-words border-l-2 border-cat-fix/30 pl-4 text-sm text-text-secondary">{item}</li>
               ))}
             </ul>
           </div>
@@ -132,7 +132,7 @@ export default async function ReleaseDetailPage({
             </h3>
             <ul className="space-y-1.5">
               {release.chores.map((item: string, i: number) => (
-                <li key={i} className="text-sm pl-4 border-l-2 border-cat-chore/30 text-text-secondary">{item}</li>
+                <li key={i} className="break-words border-l-2 border-cat-chore/30 pl-4 text-sm text-text-secondary">{item}</li>
               ))}
             </ul>
           </div>
@@ -141,9 +141,9 @@ export default async function ReleaseDetailPage({
 
       {/* Raw body fallback */}
       {!release.aiSummary && release.rawBody && (
-        <div className="card-linear p-6 space-y-2">
+        <div className="card-linear space-y-2 p-4 sm:p-6">
           <h2 className="text-sm font-medium text-text-tertiary uppercase tracking-wide font-feature-settings-cv01-ss03">Raw Notes</h2>
-          <pre className="text-sm whitespace-pre-wrap font-sans bg-surface-2 p-4 rounded-md text-text-secondary">{release.rawBody}</pre>
+          <pre className="overflow-x-auto break-words rounded-md bg-surface-2 p-4 font-sans text-sm text-text-secondary whitespace-pre-wrap">{release.rawBody}</pre>
         </div>
       )}
 

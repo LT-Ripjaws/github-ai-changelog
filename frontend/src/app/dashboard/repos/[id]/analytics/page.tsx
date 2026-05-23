@@ -1,22 +1,11 @@
 import { headers } from "next/headers";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { getAnalyticsServer } from "@/lib/server-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { SkeletonChart } from "@/components/ui/skeleton";
 import { EmptyAnalytics } from "@/components/ui/empty-state";
-
-const CategoryBarChart = dynamic(
-  () => import("@/components/analytics/CategoryBarChart"),
-  { ssr: false, loading: () => <SkeletonChart /> }
-);
-
-const CommitsOverTimeChart = dynamic(
-  () => import("@/components/analytics/CommitsOverTimeChart"),
-  { ssr: false, loading: () => <SkeletonChart /> }
-);
+import { CategoryBarChart, CommitsOverTimeChart } from "@/components/analytics/AnalyticsCharts";
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
@@ -80,8 +69,8 @@ export default async function AnalyticsPage({
           </p>
         </div>
 
-        <form method="get" className="card-linear flex flex-wrap items-end gap-3 p-4" aria-label="Filter analytics by date range">
-          <label className="space-y-1">
+        <form method="get" className="card-linear flex w-full flex-wrap items-end gap-3 p-4 lg:w-auto" aria-label="Filter analytics by date range">
+          <label className="min-w-0 flex-1 space-y-1 sm:flex-none">
             <span className="block text-xs font-medium uppercase tracking-wide text-text-tertiary font-feature-settings-cv01-ss03">
               From
             </span>
@@ -90,10 +79,10 @@ export default async function AnalyticsPage({
               name="from"
               defaultValue={from}
               aria-label="Analytics from date"
-              className="input-linear h-10 min-w-[150px]"
+              className="input-linear h-10 w-full sm:min-w-[150px]"
             />
           </label>
-          <label className="space-y-1">
+          <label className="min-w-0 flex-1 space-y-1 sm:flex-none">
             <span className="block text-xs font-medium uppercase tracking-wide text-text-tertiary font-feature-settings-cv01-ss03">
               To
             </span>
@@ -102,14 +91,14 @@ export default async function AnalyticsPage({
               name="to"
               defaultValue={to}
               aria-label="Analytics to date"
-              className="input-linear h-10 min-w-[150px]"
+              className="input-linear h-10 w-full sm:min-w-[150px]"
             />
           </label>
-          <Button type="submit" className="btn-linear-primary h-10">
+          <Button type="submit" className="btn-linear-primary h-10 w-full sm:w-auto">
             Apply range
           </Button>
           {hasDateFilter ? (
-            <Button asChild variant="outline" className="btn-linear-subtle h-10">
+            <Button asChild variant="outline" className="btn-linear-subtle h-10 w-full sm:w-auto">
               <Link href={`/dashboard/repos/${id}/analytics`} prefetch>
                 Clear
               </Link>

@@ -3,7 +3,7 @@ const features = [
     title: "AI Changelogs",
     description:
       "Every commit becomes a human-readable changelog entry, categorized by impact — breaking, feature, fix, and more.",
-    delayClass: "animate-delay-100",
+    revealDelay: "80",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
@@ -16,7 +16,7 @@ const features = [
     title: "Semantic Search",
     description:
       "Find commits by meaning, not keywords. Natural-language queries over pgvector embeddings of every change.",
-    delayClass: "animate-delay-200",
+    revealDelay: "180",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
         <circle cx="11" cy="11" r="7" />
@@ -28,7 +28,7 @@ const features = [
     title: "Release Intelligence",
     description:
       "AI-written release summaries with breaking changes, features, and fixes grouped and ready to publish.",
-    delayClass: "animate-delay-300",
+    revealDelay: "280",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
         <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
@@ -40,7 +40,12 @@ const features = [
 
 export function Features() {
   return (
-    <section id="features" className="relative overflow-hidden bg-surface-1 py-24">
+    <section
+      id="features"
+      className="landing-lazy-section relative overflow-hidden bg-surface-1 py-24"
+      data-lazy-size="medium"
+      data-scroll-section
+    >
       <div className="section-atmosphere" aria-hidden="true" />
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
         <div className="corner-shine-tl" />
@@ -48,7 +53,11 @@ export function Features() {
       </div>
 
       <div className="container relative z-10 mx-auto px-6">
-        <div className="mx-auto mb-16 max-w-2xl text-center">
+        <div
+          className="mx-auto mb-16 max-w-2xl text-center"
+          data-scroll-reveal
+          data-reveal-effect="up"
+        >
           <span className="mb-3 block text-xs font-medium uppercase tracking-[0.2em] text-brand-indigo">
             Capabilities
           </span>
@@ -64,9 +73,12 @@ export function Features() {
           {features.map((feature) => (
             <div
               key={feature.title}
-              className={`card-linear h-full p-6 animate-fade-in-up ${feature.delayClass}`}
+              className="card-linear h-full p-6"
+              data-scroll-reveal
+              data-reveal-effect="up"
+              data-reveal-delay={feature.revealDelay}
             >
-              <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-lg border border-border-standard bg-surface-2 text-brand-indigo">
+              <div className="feature-icon-tile mb-5 flex h-11 w-11 items-center justify-center rounded-lg border border-border-standard bg-surface-2 text-brand-indigo">
                 {feature.icon}
               </div>
               <h3 className="mb-2 text-lg font-medium text-text-primary font-feature-settings-cv01-ss03">
