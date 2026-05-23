@@ -51,7 +51,15 @@ In simple terms: connect a repo, let the backend sync it, then review clean AI-g
 - Natural-language semantic search over commits
 - Repository analytics with category and monthly commit charts
 - Protected dashboard using httpOnly cookie authentication
+- Live sync progress over Server-Sent Events, with polling as an automatic fallback
+- Incremental GitHub sync (conditional ETag + `since` + pagination) for cheap re-syncs
+- Optional single-call AI analysis that cuts ~3 LLM calls/commit down to 1
+- Horizontally scalable: split web/worker processes with distributed rate limiting
+- Prometheus-style `/metrics` endpoint and TypeORM migrations
 - Swagger API docs in development/local mode
+
+All scaling and cost features are behind environment flags that default to the
+original single-process behavior — see [Scaling & Feature Flags](#scaling--feature-flags).
 
 ## Tech Stack
 
@@ -65,6 +73,10 @@ In simple terms: connect a repo, let the backend sync it, then review clean AI-g
 | Database | PostgreSQL with pgvector | Relational data plus vector search |
 | ORM | TypeORM | Entity mapping and repository access |
 | Queue | Bull with Redis | Background repository sync jobs |
+| Realtime | Redis pub/sub + SSE | Live sync progress push (poll fallback) |
+| Rate limiting | Redis token bucket | Distributed per-provider AI throttling |
+| Observability | Prometheus-style `/metrics` | Queue depth, AI/GitHub call counters |
+| Migrations | TypeORM CLI + runtime | Additive schema deltas over a frozen baseline |
 | Auth | GitHub OAuth, Passport, JWT | Login and protected API routes |
 | AI text | OpenAI SDK against Kilo Code gateway | Diff summaries, categories, changelog entries, release summaries |
 | AI embeddings | Google Gemini embeddings | Semantic commit search |
@@ -76,15 +88,23 @@ In simple terms: connect a repo, let the backend sync it, then review clean AI-g
 github-ai-changelog/
   backend/                  NestJS API
     src/
-      ai/                   AI prompts and provider calls
+      ai/                   AI prompts and provider calls (incl. single-call analyzeCommit)
       analytics/            Commit analytics API
       auth/                 GitHub OAuth and JWT auth
+      bootstrap/            Frozen ensureSchema() baseline (shared by web + worker)
       commits/              Commit list, detail, filters, semantic search
       common/               Guards, filters, DTOs, middleware, utilities
-      jobs/                 Bull queue and sync processor
+        metrics/            Prometheus-style /metrics endpoint
+        ratelimit/          Distributed Redis rate limiter
+        pubsub/             Redis pub/sub for SSE status push
+      jobs/                 Bull queue and sync processor (ROLE/concurrency aware)
+      migrations/           TypeORM migration deltas
       releases/             Release list and detail API
       repos/                Repo connection, GitHub API client, ingestion pipeline
       users/                User storage and encrypted GitHub token access
+      main.ts               Web entrypoint (HTTP API)
+      worker.ts             Worker entrypoint (sync processor, no HTTP)
+      data-source.ts        Standalone DataSource for the TypeORM CLI
   frontend/                 Next.js app
     src/
       app/                  App Router pages and layouts
@@ -117,8 +137,8 @@ Important flow:
 4. The backend creates a JWT and sets it as an httpOnly `token` cookie.
 5. The dashboard reads protected data using that cookie.
 6. When a repo is connected, the backend creates a repo record and queues a Bull job.
-7. The job syncs commits/releases and stores AI-enriched results.
-8. The frontend polls repo status while sync is running.
+7. The job syncs commits/releases and stores AI-enriched results (in the web process by default, or a separate worker process when split).
+8. The frontend shows live progress via SSE when enabled, otherwise polls repo status while sync is running.
 
 ## Backend Overview
 
@@ -134,22 +154,34 @@ The backend is a NestJS app. It is organized by feature modules:
 | `CommitsModule` | Commit list/detail/filtering and semantic search |
 | `ReleasesModule` | Release list and release detail lookup |
 | `AnalyticsModule` | SQL aggregation for dashboard charts |
+| `MetricsModule` | Prometheus-style `/metrics` (queue depth, AI/GitHub counters) |
+| `RatelimitModule` | Distributed Redis rate limiter for AI providers |
+| `RedisPubSubModule` | Pub/sub channel powering the SSE status stream |
 
-The backend entry point is `backend/src/main.ts`. It sets up:
+The web entry point is `backend/src/main.ts`. It sets up:
 
-- schema bootstrap for PostgreSQL tables and pgvector
+- schema bootstrap (`ensureSchema()`) then TypeORM migration deltas
 - cookie parsing
 - GitHub OAuth session state support
 - CORS for the frontend URL
 - Swagger in development/local mode
-- rate limiting
+- rate limiting (skips `/health`, `/metrics`, status/stream endpoints)
 - CSRF origin/referer checks for mutating requests
 - global DTO validation
 - global exception filtering
 
+`backend/src/worker.ts` is the worker entry point. It boots the same modules
+without an HTTP server so Bull processors run in a separate process. The
+`ROLE` env var (`all` default | `web` | `worker`) selects the mode; `all`
+keeps the original single-process behavior.
+
 ## Database Tables
 
-The app uses PostgreSQL. Tables are created by `ensureSchema()` in `backend/src/main.ts`.
+The app uses PostgreSQL. The frozen idempotent baseline is `ensureSchema()` in
+`backend/src/bootstrap/ensure-schema.ts`; all later schema changes are additive
+TypeORM migrations in `backend/src/migrations/` that run automatically on web
+boot (after the baseline). For example, `repos.commits_etag` is added by a
+migration, not the baseline.
 
 | Table | Purpose |
 |---|---|
@@ -169,6 +201,7 @@ Most routes are protected with JWT cookie auth. The main endpoints are:
 | Method | Endpoint | Purpose |
 |---|---|---|
 | `GET` | `/health` | Backend health check |
+| `GET` | `/metrics` | Prometheus-style metrics (unauthenticated) |
 | `GET` | `/auth/github` | Start GitHub OAuth |
 | `GET` | `/auth/github/callback` | Finish OAuth, set cookie, redirect |
 | `GET` | `/auth/me` | Get current user |
@@ -179,6 +212,7 @@ Most routes are protected with JWT cookie auth. The main endpoints are:
 | `DELETE` | `/repos/:id` | Remove a repository |
 | `POST` | `/repos/:id/sync` | Queue a repository sync |
 | `GET` | `/repos/:id/status` | Get sync status and progress |
+| `GET` | `/repos/:id/status/stream` | SSE stream of live sync status |
 | `GET` | `/repos/:repoId/commits` | List commits with filters |
 | `GET` | `/repos/:repoId/commits/:sha` | Get one commit |
 | `POST` | `/repos/:repoId/commits/search` | Semantic commit search |
@@ -200,6 +234,11 @@ http://localhost:3001/api
 - GitHub OAuth App
 - Gemini API key
 - Kilo Code API key
+
+> **Clone into a path without spaces** (e.g. `C:\dev\github-ai-changelog`, not
+> `C:\My Projects\...`). The dev scripts use `nest start --no-shell`, which
+> fails when the project path contains spaces — see
+> [Troubleshooting](#backend-dev-server-fails-when-the-project-path-has-spaces).
 
 ## GitHub OAuth Setup
 
@@ -281,9 +320,51 @@ openssl rand -hex 32
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3001
 BACKEND_URL=http://localhost:3001
+NEXT_PUBLIC_STATUS_TRANSPORT=poll
 ```
 
-`NEXT_PUBLIC_API_URL` is used by browser-side Axios calls. `BACKEND_URL` is used by server-side Next.js fetch helpers.
+`NEXT_PUBLIC_API_URL` is used by browser-side Axios calls. `BACKEND_URL` is used by server-side Next.js fetch helpers. `NEXT_PUBLIC_STATUS_TRANSPORT` (`poll` default | `sse`) selects how the dashboard tracks sync progress; set to `sse` only together with the backend's `STATUS_TRANSPORT=sse`, and rebuild the frontend after changing it.
+
+## Scaling & Feature Flags
+
+Every flag below is optional and **defaults to the original single-process
+behavior**, so the app runs unchanged with none of them set. They are
+documented in `backend/.env.example`.
+
+| Variable | Default | Effect when changed |
+|---|---|---|
+| `ROLE` | `all` | `web` (API only) or `worker` (sync only, no HTTP). Set **per process at launch**, not in shared `.env`. |
+| `SYNC_CONCURRENCY` | `1` | Concurrent repo syncs per worker. Only safe with `RATE_LIMITER=redis`. |
+| `RATE_LIMITER` | `memory` | `redis` enables distributed per-provider AI throttling (required for >1 process or concurrency >1). |
+| `KILO_MIN_INTERVAL_MS` / `GEMINI_MIN_INTERVAL_MS` | `400` / `800` | Min ms between AI calls per provider. |
+| `SYNC_RATE_MAX` / `SYNC_RATE_DURATION_MS` | unset / `1000` | Optional coarse Bull job-rate cap. |
+| `AI_COMBINED_ANALYSIS` | `off` | `on` collapses 3 LLM calls/commit into 1 structured call (per-field fallback on parse failure, so never worse). |
+| `INCREMENTAL_SYNC` | `off` | `on` enables conditional ETag + `since` + Link pagination; lifts the 100-commit cap up to `MAX_COMMITS_PER_SYNC`. |
+| `MAX_COMMITS_PER_SYNC` | `500` | Upper bound when `INCREMENTAL_SYNC=on`. |
+| `STATUS_TRANSPORT` | `poll` | `sse` pushes progress over Redis pub/sub + SSE. Pair with frontend `NEXT_PUBLIC_STATUS_TRANSPORT=sse`. |
+
+Rules of thumb:
+
+- The horizontal-scale payoff only lands when you actually run split `web` +
+  `worker` processes with `RATE_LIMITER=redis`.
+- Never raise `SYNC_CONCURRENCY` or run multiple workers on the in-memory limiter.
+- SSE needs both sides set; the frontend must be rebuilt after changing
+  `NEXT_PUBLIC_*`. If the stream errors, the dashboard auto-falls back to polling.
+
+### Running split web + worker
+
+```bash
+cd backend
+npm run build
+
+# terminal 1 — API only
+ROLE=web node dist/main
+
+# terminal 2 — sync worker only
+ROLE=worker SYNC_CONCURRENCY=4 node dist/worker
+```
+
+On Windows PowerShell, set the variable first: `$env:ROLE='worker'; node dist/worker`.
 
 ## Installation
 
@@ -368,10 +449,14 @@ Backend:
 ```bash
 cd backend
 npm run start:dev
+npm run start:worker          # sync worker, no HTTP (ROLE=worker)
 npm run build
 npm run test
 npm run test:e2e
 npm run lint
+npm run migration:generate -- src/migrations/Name
+npm run migration:run
+npm run migration:revert
 ```
 
 Frontend:
@@ -406,9 +491,35 @@ Repository sync is intentionally asynchronous:
 5. PostgreSQL stores the results.
 6. The repo status becomes `ready` or `error`.
 
-If the browser is closed during sync, the backend job continues as long as the backend, Redis, and PostgreSQL are still running. If the whole dev stack is stopped, the sync may be interrupted. Running sync again should generally continue by skipping complete commits and reprocessing incomplete AI fields.
+If the browser is closed during sync, the backend job continues as long as the backend, Redis, and PostgreSQL are still running. If the whole dev stack is stopped, the sync may be interrupted. Running sync again continues by skipping complete commits and reprocessing incomplete AI fields.
+
+With `INCREMENTAL_SYNC=on`, re-syncing an unchanged repo does almost no work: the GitHub `since` filter (and conditional ETag) return nothing new, so no commits are reprocessed and no AI calls are made. With `AI_COMBINED_ANALYSIS=on`, each newly processed commit makes one combined AI call instead of three. With `STATUS_TRANSPORT=sse`, the worker publishes progress that the dashboard receives as a live push.
 
 ## Troubleshooting
+
+### Backend dev server fails when the project path has spaces
+
+Symptom: `npm run start:dev` / `npm run start:debug` (and `dev.ps1` / `dev.sh`,
+which call them) fail to launch the backend with a quoting / "cannot find
+module" style error when the repository lives in a path that contains spaces
+(e.g. `C:\Users\me\My Projects\...`).
+
+Cause: those scripts pass `--no-shell` to `nest start`. The NestJS CLI quotes
+the compiled entry path for the shell, but in `--no-shell` mode there is no
+shell to strip the quotes, so the quote characters become part of the path and
+Node cannot resolve it. This is a NestJS CLI limitation, not an app bug.
+
+Fixes, in order of preference:
+
+- Clone the repository into a path **without spaces** (simplest, recommended).
+- Or use the tsc-based watcher, which does not pass `--no-shell`:
+  `cd backend && npm run start:dev:tsc` (slower rebuilds than swc).
+- Or build and run without the watcher: `npm run build && npm run start:prod`
+  (no hot reload). The split commands `node dist/main` / `node dist/worker`
+  are also unaffected.
+
+Only the two `--no-shell` dev scripts are impacted; production start and the
+web/worker split commands work regardless of path.
 
 ### Backend fails on startup
 
@@ -440,17 +551,15 @@ Check backend logs in `.dev-logs/backend.log` or the backend terminal. Common ca
 
 ### Dashboard progress looks stale
 
-The frontend polls `/repos/:id/status` while a repo is `pending` or `syncing`. If the backend has finished but the dashboard looks old, refresh the dashboard or open the repo page to force a fresh server fetch. The dashboard also auto-resumes polling for in-flight repos.
+The frontend tracks `/repos/:id/status` while a repo is `pending` or `syncing` — by polling, or over SSE when `STATUS_TRANSPORT=sse` is set on both sides. If SSE errors, it automatically falls back to polling. If the backend has finished but the dashboard looks old, refresh the dashboard or open the repo page to force a fresh server fetch. The dashboard also auto-resumes tracking for in-flight repos.
 
 ## Known Limitations
 
-- Sync currently fetches the latest 100 commits per repository.
-- Semantic search uses brute-force pgvector distance because the Gemini embedding dimension is 3072.
-- There are no production-grade TypeORM migrations yet; schema bootstrap is handled in `backend/src/main.ts`.
-- AI output can vary and should be reviewed before using it as official release communication.
+- By default sync fetches the latest 100 commits per repository; `INCREMENTAL_SYNC=on` lifts this up to `MAX_COMMITS_PER_SYNC`.
+- Semantic search uses brute-force pgvector distance because the Gemini embedding dimension is 3072 (an HNSW index / ≤2000-dim re-embedding is deferred — see `plan.md` Phase 5).
+- TypeORM migrations exist for additive deltas; the frozen `ensureSchema()` baseline remains the bootstrap and is intentionally not migrated.
+- AI output can vary and should be reviewed before using it as official release communication. `AI_COMBINED_ANALYSIS` effectiveness depends on the configured model returning parseable JSON (it safely falls back to per-field calls otherwise).
 - Classic GitHub OAuth requires the broad `repo` scope for private repository access.
-
-```
 
 ## License
 
